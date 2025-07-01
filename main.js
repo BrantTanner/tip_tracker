@@ -1,5 +1,5 @@
 
-const scriptURL = 'https://script.google.com/macros/s/AKfycbzXVb0LzBnNA-JUnBELG3AAKZdM3oelXbTbInH_Ls1f5XLemC_w8z7S29xp7PzYo7wD/exec';
+const scriptURL = 'https://script.google.com/macros/s/AKfycbwJc_JzmJ4_LcQzZ2ALvacG3TeUP8HDXJWy6ql1bzPvS61HbZb4evgz-kXPh2dZ4I3k/exec';
 
 document.getElementById('tipForm').addEventListener('submit', function(e) {
     e.preventDefault();
@@ -19,7 +19,7 @@ document.getElementById('tipForm').addEventListener('submit', function(e) {
 
 
 //Code to create display of spreadsheet on website
-const dataURL = 'https://script.google.com/macros/s/AKfycbzXVb0LzBnNA-JUnBELG3AAKZdM3oelXbTbInH_Ls1f5XLemC_w8z7S29xp7PzYo7wD/exec'
+const dataURL = 'https://script.google.com/macros/s/AKfycbwJc_JzmJ4_LcQzZ2ALvacG3TeUP8HDXJWy6ql1bzPvS61HbZb4evgz-kXPh2dZ4I3k/exec'
 
 fetch(dataURL)
 .then(res => res.json())
