@@ -21,11 +21,13 @@ export async function submitTip() {
   const tips = document.getElementById("tips").value;
   const guests = document.getElementById("guests").value;
   const tour = document.getElementById("tour").value;
+  const ship = document.getElementById("ship").value;
 
   await addDoc(collection(db, "tips"), {
     tips: parseFloat(tips),
     guests: parseInt(guests),
     tour: tour,
+    ship: ship,
     date: new Date().toISOString()
   });
 
@@ -37,7 +39,7 @@ export async function submitTip() {
 export async function displayTips() {
   const snapshot = await getDocs(collection(db, "tips"));
   const table = document.getElementById("tipTable");
-  table.innerHTML = "<tr><th>Date</th><th>Tour</th><th>Guests</th><th>Tips</th></tr>";
+  table.innerHTML = "<tr><th>Date</th><th>Tour</th><th>Cruise Ship</th><th>Guests</th><th>Tips</th></tr>";
 
   snapshot.forEach((doc) => {
     const data = doc.data();
@@ -45,6 +47,7 @@ export async function displayTips() {
       <tr>
         <td>${new Date(data.date).toLocaleDateString()}</td>
         <td>${data.tour}</td>
+        <td>${data.ship}
         <td>${data.guests}</td>
         <td>$${data.tips.toFixed(2)}</td>
       </tr>`;
