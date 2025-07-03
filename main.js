@@ -1,56 +1,59 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-const scriptURL = 'https://script.google.com/macros/s/AKfycbwJc_JzmJ4_LcQzZ2ALvacG3TeUP8HDXJWy6ql1bzPvS61HbZb4evgz-kXPh2dZ4I3k/exec';
+// Your Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyB5sdq67xFYUvxrdWx3nNpjg2BH_-QOqx8",
+  authDomain: "tip-tracker-b08ca.firebaseapp.com",
+  projectId: "tip-tracker-b08ca",
+  storageBucket: "tip-tracker-b08ca.firebasestorage.app",
+  messagingSenderId: "1008683412353",
+  appId: "1:1008683412353:web:7eab17177929449bf8d680",
+  measurementId: "G-Q4VE849YYV"
+};
 
-document.getElementById('tipForm').addEventListener('submit', function(e) {
-    e.preventDefault();
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-    const formData = new FormData(this);
-    const data = Object.fromEntries(formData.entries());
+// Submit a new tip
+export async function submitTip() {
+  const tips = document.getElementById("tips").value;
+  const guests = document.getElementById("guests").value;
+  const tour = document.getElementById("tour").value;
 
-    fetch(scriptURL, {
-        method: 'POST',
-        body: JSON.stringify(data)
-    })
-    .then(response => document.getElementById('status').innerText = "Submitted!")
-    .catch(error => document.getElementById('status').innerText = "Error: " + error);
-});
+  await addDoc(collection(db, "tips"), {
+    tips: parseFloat(tips),
+    guests: parseInt(guests),
+    tour: tour,
+    date: new Date().toISOString()
+  });
 
+  alert("Tip submitted!");
+  displayTips();
+}
 
+// Display all tips
+export async function displayTips() {
+  const snapshot = await getDocs(collection(db, "tips"));
+  const table = document.getElementById("tipTable");
+  table.innerHTML = "<tr><th>Date</th><th>Tour</th><th>Guests</th><th>Tips</th></tr>";
 
+  snapshot.forEach((doc) => {
+    const data = doc.data();
+    table.innerHTML += `
+      <tr>
+        <td>${new Date(data.date).toLocaleDateString()}</td>
+        <td>${data.tour}</td>
+        <td>${data.guests}</td>
+        <td>$${data.tips.toFixed(2)}</td>
+      </tr>`;
+  });
+}
 
-//Code to create display of spreadsheet on website
-const dataURL = 'https://script.google.com/macros/s/AKfycbwJc_JzmJ4_LcQzZ2ALvacG3TeUP8HDXJWy6ql1bzPvS61HbZb4evgz-kXPh2dZ4I3k/exec'
+// Make functions accessible to HTML
+window.submitTip = submitTip;
+window.displayTips = displayTips;
 
-fetch(dataURL)
-.then(res => res.json())
-.then(data => {
-    const container = document.getElementById('dataDisplay');
-    if (data.length === 0) {
-        container.innerText = "No data yet.";
-        return;
-    }
-
-    // Create a table
-    let html = '<table border="1"><tr>';
-    // Table headers
-    Object.keys(data[0]).forEach(key => {
-        html += `<th>${key}</th>`;
-    });
-    html += '</tr>';
-
-    // Table rows
-    data.forEach(row => {
-        html += '<tr>';
-        Object.values(row).forEach(value => {
-            html += `<td>${value}</td>`;
-        });
-        html += '</tr>'
-    });
-    html += '</tr>';
-
-    container.innerHTML = html;
-})
-.catch(err => {
-    document.getElementById('dataDisplay').innerText = "Error loading data: " + err;
-
-});
+// Load tips on page load
+window.onload = displayTips;
