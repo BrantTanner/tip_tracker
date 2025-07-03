@@ -60,3 +60,12 @@ window.displayTips = displayTips;
 
 // Load tips on page load
 window.onload = displayTips;
+
+// Attach submit event listener to the form
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("tipForm");
+  form.addEventListener("submit", (event) => {
+    event.preventDefault(); // prevent page refresh
+    submitTip(); // call your Firestore logic
+  });
+});
