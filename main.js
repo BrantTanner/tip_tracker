@@ -37,21 +37,26 @@ export async function submitTip() {
 
 // Display all tips
 export async function displayTips() {
-  const snapshot = await getDocs(collection(db, "tips"));
-  const table = document.getElementById("tipTable");
-  table.innerHTML = "<tr><th>Date</th><th>Tour</th><th>Cruise Ship</th><th>Guests</th><th>Tips</th></tr>";
+    // Inject table into container
+    const container = document.getElementById("dataDisplay");
+    container.innerHTML = "<table id='tipTable' border='1'><tr><th>Date</th><th>Tour</th><th>Cruise Ship</th><th>Guests</th><th>Tips</th></tr></table>";
+    const table = document.getElementById(tipTable)
 
-  snapshot.forEach((doc) => {
-    const data = doc.data();
-    table.innerHTML += `
-      <tr>
-        <td>${new Date(data.date).toLocaleDateString()}</td>
-        <td>${data.tour}</td>
-        <td>${data.ship}
-        <td>${data.guests}</td>
-        <td>$${data.tips.toFixed(2)}</td>
-      </tr>`;
-  });
+    // Get data from Firestore
+    const snapshot = await getDocs(collection(db, "tips"));
+
+    // Add each row to table
+    snapshot.forEach((doc) => {
+        const data = doc.data();
+        table.innerHTML += `
+            <tr>
+            <td>${new Date(data.date).toLocaleDateString()}</td>
+            <td>${data.tour}</td>
+            <td>${data.ship}</td>
+            <td>${data.guests}</td>
+            <td>$${data.tips.toFixed(2)}</td>
+            </tr>`;
+    });
 }
 
 // Make functions accessible to HTML
