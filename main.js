@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 // Your Firebase config
 const firebaseConfig = {
     apiKey: "AIzaSyB5sdq67xFYUvxrdWx3nNpjg2BH_-QOqx8",
@@ -15,16 +15,67 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app)
+
+// Sign up
+document.getElementById('signup-btn').addEventListener('click', async () => {
+    const email = document.getElementById('signup-email').value;
+    const password = document.getElementById('signup-password').value;
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        alert("Sign-up successful!");
+    }   catch (error) {
+        alert(error.message);
+    }
+});
+
+// Log in
+document.getElementById('login-btn').addEventListener('click', async () => {
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    try{
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        alert("Login successful!");
+    }   catch (error) {
+        alert(error.message);
+    }
+});
+
+// Track logged in user
+onAuthStateChanged(auth, user => {
+    if (user) {
+        console.log("User logged in:", user.uid);
+        displayTips(); // <- load inputted tips
+    }   else {
+        console.log("User logged out");
+        displayTips(); // <- clear or show "log in" message
+    }
+});
+
+// Log out
+document.getElementById('logout-btn').addEventListener('click', () => {
+    signOut(auth).then(() => alert("Logged out"));
+});
 
 // Submit a new tip
 export async function submitTip() {
     console.log("submitTip function triggered")
+    
+    const user = auth.currentUser;
+
+    if (!user) {
+        alert("You must be logged in to submit a tip")
+        return;
+    }
+
     const tips = document.getElementById("tips").value;
     const guests = document.getElementById("guests").value;
     const tour = document.getElementById("tour").value;
     const ship = document.getElementById("ship").value;
 
-    await addDoc(collection(db, "tips"), {
+
+    // save to user's subcollection
+    await addDoc(collection(db, "users", user.uid, "tips"), {
         tips: parseFloat(tips),
         guests: parseInt(guests),
         tour: tour,
@@ -34,6 +85,7 @@ export async function submitTip() {
 
     alert("Tip submitted!");
     displayTips();
+    document.getElementById("tipForm").reset();
 }
 
 // Display all tips
@@ -43,8 +95,15 @@ export async function displayTips() {
     container.innerHTML = "<table id='tipTable' border='1'><tr><th>Date</th><th>Tour</th><th>Cruise Ship</th><th>Guests</th><th>Tips</th></tr></table>";
     const table = document.getElementById("tipTable")
 
+    const user = auth.currentUser;
+
+    if (!user) {
+        table.innerHTML += `<tr><td colspan="5">Please log in to view your tips.</td></tr>`;
+        return;
+    }
+
     // Get data from Firestore
-    const snapshot = await getDocs(collection(db, "tips"));
+    const snapshot = await getDocs(collection(db, "users", user.uid, "tips"));
 
     // Add each row to table
     snapshot.forEach((doc) => {
