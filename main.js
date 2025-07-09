@@ -23,9 +23,11 @@ document.getElementById('signup-btn').addEventListener('click', async () => {
     const password = document.getElementById('signup-password').value;
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        alert("Sign-up successful!");
+        alert("Sign-up successful!")
+        form.reset();
     }   catch (error) {
-        alert(error.message);
+        alert(error.message)
+        form.reset();
     }
 });
 
@@ -35,9 +37,11 @@ document.getElementById('login-btn').addEventListener('click', async () => {
     const password = document.getElementById('login-password').value;
     try{
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        alert("Login successful!");
+        alert("Login successful!")
+        document.getElementById('login-form').reset();
     }   catch (error) {
-        alert(error.message);
+        alert(error.message)
+        passwordInput.value = "";
     }
 });
 
