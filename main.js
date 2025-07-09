@@ -19,8 +19,10 @@ const auth = getAuth(app)
 
 // Sign up
 document.getElementById('signup-btn').addEventListener('click', async () => {
+    const form = document.getElementById('signup-form');
     const email = document.getElementById('signup-email').value;
     const password = document.getElementById('signup-password').value;
+    
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         alert("Sign-up successful!")
@@ -33,12 +35,15 @@ document.getElementById('signup-btn').addEventListener('click', async () => {
 
 // Log in
 document.getElementById('login-btn').addEventListener('click', async () => {
+    const form = document.getElementById('login-form');
+    const passwordInput = document.getElementById('login-password');
     const email = document.getElementById('login-email').value;
-    const password = document.getElementById('login-password').value;
+    const password = passwordInput.value;
+
     try{
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        alert("Login successful!")
-        document.getElementById('login-form').reset();
+        alert("Login successful!");
+        form.reset();
     }   catch (error) {
         alert(error.message)
         passwordInput.value = "";
