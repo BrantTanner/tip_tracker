@@ -43,7 +43,7 @@ document.getElementById('login-btn').addEventListener('click', async () => {
     try{
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         alert("Login successful!");
-        form.reset();
+        document.getElementById('login-form').reset;
     }   catch (error) {
         alert(error.message)
         passwordInput.value = "";
