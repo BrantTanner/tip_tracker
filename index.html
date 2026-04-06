@@ -4,24 +4,49 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
+    <link rel="stylesheet" href="styles/styles.css">
 </head>
 <body>
-    <button id="login">Login</button>
-    <button id="signup">Sign Up</button>
-    <h1>Tip Tracker</h1>
+    <section id="authControls">
+        <div id="loggedOutActions">
+            <button id="login" type="button">Login</button>
+            <button id="signup" type="button">Sign Up</button>
+        </div>
 
-    <form id="tipForm">
-        <label>Tips: <input type="number" name="tips" required></label>
-        <label>Guests: <input type="number" name="guests" required></label>
-        <label>Tour: <input type="text" name="tour" required></label>
-        <label>Cruise Ship: <input type="text" name="ship" required></label>
-        <button type="submit">Submit</button>
-    </form>
-    
-    <p id="status"></p>
-    <!-- Placeholder for spreadsheet-->
-    <div id="dataDisplay"></div>
+        <div id="loggedInActions" style="display: none;">
+            <p id="currentUser"></p>
+            <button id="logout" type="button">Logout</button>
+        </div>
+        <p id="authStatus"></p>
+    </section>
 
-<script src="main.js"></script>
+    <div id="authModal" style="display: none;">
+        <div class="modalCard">
+            <h2>Account</h2>
+            <label>Email: <input type="email" id="authEmail" autocomplete="email"></label>
+            <label>Password: <input type="password" id="authPassword" autocomplete="current-password"></label>
+            <button id="modalLogin" type="button">Login</button>
+            <button id="modalSignup" type="button">Sign Up</button>
+            <button id="googleLogin" type="button">Sign In With Google</button>
+            <button id="closeAuthModal" type="button">Close</button>
+        </div>
+    </div>
+
+    <section id="appContent">
+        <h1>Tip Tracker</h1>
+
+        <form id="tipForm">
+            <label>Tips: <input type="number" name="tips" required></label>
+            <label>Guests: <input type="number" name="guests" required></label>
+            <label>Tour: <input type="text" name="tour" required></label>
+            <label>Cruise Ship: <input type="text" name="ship" required></label>
+            <button type="submit">Submit</button>
+        </form>
+        
+        <p id="status"></p>
+        <div id="dataDisplay"></div>
+    </section>
+
+<script type="module" src="main.js"></script>
 </body>
 </html>
