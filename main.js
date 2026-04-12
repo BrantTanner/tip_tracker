@@ -26,6 +26,7 @@ const passwordInput = document.getElementById("authPassword");
 const currentUserEl = document.getElementById("currentUser");
 
 let currentUser = null;
+const EDITABLE_FIELDS = new Set(["tips", "guests", "tour", "ship", "created_at"]);
 
 function clearDataViews() {
     dataDisplayEl.innerText = "Log in to view your tips.";
@@ -81,12 +82,177 @@ function formatDateOnly(value) {
         return "";
     }
 
+    if (typeof value === "string") {
+        const match = value.match(/^(\d{4}-\d{2}-\d{2})/);
+        if (match) {
+            return match[1];
+        }
+    }
+
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) {
         return value;
     }
 
-    return date.toLocaleDateString();
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+}
+
+async function deleteTipRow(id) {
+    if (!currentUser) {
+        authStatusEl.innerText = "Log in before deleting tips.";
+        return;
+    }
+
+    const { error } = await supabase
+        .from(TABLE_NAME)
+        .delete()
+        .eq("id", id)
+        .eq("user_id", currentUser.id);
+
+    if (error) {
+        statusEl.innerText = `Error deleting row: ${error.message}`;
+        return;
+    }
+
+    statusEl.innerText = "Row deleted.";
+    await loadTips();
+}
+
+function parseEditableValue(field, rawValue) {
+    const trimmed = rawValue.trim();
+
+    if (field === "tips") {
+        const normalized = trimmed.replace(/[$,\s]/g, "");
+        const parsed = Number(normalized);
+        if (!Number.isFinite(parsed)) {
+            return { valid: false, message: "Tips must be a number." };
+        }
+
+        const fixed = Number(parsed.toFixed(2));
+        return { valid: true, value: fixed, display: `$${fixed.toFixed(2)}` };
+    }
+
+    if (field === "guests") {
+        const parsed = Number(trimmed);
+        if (!Number.isFinite(parsed)) {
+            return { valid: false, message: "Guests must be a number." };
+        }
+
+        return { valid: true, value: parsed, display: String(parsed) };
+    }
+
+    if (field === "tour" || field === "ship") {
+        if (!trimmed) {
+            return { valid: false, message: "This field cannot be empty." };
+        }
+
+        return { valid: true, value: trimmed, display: trimmed };
+    }
+
+    if (field === "created_at") {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+            return { valid: false, message: "Date must be in YYYY-MM-DD format." };
+        }
+
+        const date = new Date(`${trimmed}T00:00:00Z`);
+        if (Number.isNaN(date.getTime())) {
+            return { valid: false, message: "Enter a valid date." };
+        }
+
+        return { valid: true, value: `${trimmed}T00:00:00Z`, display: trimmed };
+    }
+
+    return { valid: false, message: "This field is not editable." };
+}
+
+function editableValuesEqual(a, b) {
+    if (typeof a === "number" && typeof b === "number") {
+        return a === b;
+    }
+
+    return String(a) === String(b);
+}
+
+async function updateTipField(id, field, value) {
+    if (!currentUser) {
+        authStatusEl.innerText = "Log in before editing tips.";
+        return { ok: false };
+    }
+
+    const { error } = await supabase
+        .from(TABLE_NAME)
+        .update({ [field]: value })
+        .eq("id", id)
+        .eq("user_id", currentUser.id);
+
+    if (error) {
+        statusEl.innerText = `Error updating row: ${error.message}`;
+        return { ok: false };
+    }
+
+    statusEl.innerText = "Row updated.";
+    await loadTips();
+    return { ok: true };
+}
+
+function setupHoverDeleteControl() {
+    const wrapper = dataDisplayEl.querySelector(".tipsTableWrap");
+    const table = wrapper?.querySelector(".tipsTable");
+    const deleteBtn = wrapper?.querySelector(".hoverDeleteBtn");
+
+    if (!wrapper || !table || !deleteBtn) {
+        return;
+    }
+
+    function hideDeleteButton() {
+        deleteBtn.hidden = true;
+        deleteBtn.removeAttribute("data-row-id");
+    }
+
+    function positionDeleteButtonForRow(row) {
+        const id = Number(row.dataset.rowId);
+        if (!Number.isFinite(id)) {
+            hideDeleteButton();
+            return;
+        }
+
+        const wrapperRect = wrapper.getBoundingClientRect();
+        const rowRect = row.getBoundingClientRect();
+        const top = rowRect.top - wrapperRect.top + rowRect.height / 2;
+
+        deleteBtn.style.top = `${top}px`;
+        deleteBtn.dataset.rowId = String(id);
+        deleteBtn.hidden = false;
+    }
+
+    wrapper.addEventListener("mousemove", (event) => {
+        if (event.target.closest(".hoverDeleteBtn")) {
+            return;
+        }
+
+        const row = event.target.closest("tr[data-row-id]");
+        if (row) {
+            positionDeleteButtonForRow(row);
+        }
+    });
+
+    wrapper.addEventListener("mouseleave", () => {
+        hideDeleteButton();
+    });
+
+    deleteBtn.addEventListener("click", async () => {
+        const id = Number(deleteBtn.dataset.rowId);
+        if (!Number.isFinite(id)) {
+            statusEl.innerText = "Unable to delete this row.";
+            return;
+        }
+
+        await deleteTipRow(id);
+        hideDeleteButton();
+    });
 }
 
 function renderTable(rows) {
@@ -104,14 +270,14 @@ function renderTable(rows) {
         created_at: "Date Submitted"
     };
 
-    let html = '<table border="1"><tr>';
+    let html = '<div class="tipsTableWrap"><table class="tipsTable" border="1"><tr>';
     displayColumns.forEach((key) => {
         html += `<th>${headerLabels[key]}</th>`;
     });
     html += "</tr>";
 
     rows.forEach((row) => {
-        html += "<tr>";
+        html += `<tr data-row-id="${row.id}">`;
         displayColumns.forEach((key) => {
             let value = row[key];
 
@@ -123,13 +289,18 @@ function renderTable(rows) {
                 value = `$${Number(value).toFixed(2)}`;
             }
 
-            html += `<td>${value ?? ""}</td>`;
+            if (EDITABLE_FIELDS.has(key)) {
+                html += `<td class="editableCell" data-field="${key}" contenteditable="true" spellcheck="false">${value ?? ""}</td>`;
+            } else {
+                html += `<td>${value ?? ""}</td>`;
+            }
         });
         html += "</tr>";
     });
 
-    html += "</table>";
+    html += '</table><button type="button" class="hoverDeleteBtn" aria-label="Delete row" hidden>&times;</button></div>';
     dataDisplayEl.innerHTML = html;
+    setupHoverDeleteControl();
 }
 
 async function loadTips() {
@@ -140,9 +311,10 @@ async function loadTips() {
 
     const { data, error } = await supabase
         .from(TABLE_NAME)
-        .select("tips, guests, tour, ship, created_at")
+        .select("id, tips, guests, tour, ship, created_at")
         .eq("user_id", currentUser.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false });
 
     if (error) {
         dataDisplayEl.innerText = `Error loading data: ${error.message}`;
@@ -151,6 +323,72 @@ async function loadTips() {
 
     renderTable(data);
 }
+
+dataDisplayEl.addEventListener("focusin", (event) => {
+    const cell = event.target.closest(".editableCell");
+    if (!cell) {
+        return;
+    }
+
+    cell.dataset.previousValue = cell.innerText.trim();
+});
+
+dataDisplayEl.addEventListener("keydown", (event) => {
+    const cell = event.target.closest(".editableCell");
+    if (!cell) {
+        return;
+    }
+
+    if (event.key === "Enter") {
+        event.preventDefault();
+        cell.blur();
+        return;
+    }
+
+    if (event.key === "Escape") {
+        event.preventDefault();
+        cell.innerText = cell.dataset.previousValue ?? "";
+        cell.blur();
+    }
+});
+
+dataDisplayEl.addEventListener("focusout", async (event) => {
+    const cell = event.target.closest(".editableCell");
+    if (!cell) {
+        return;
+    }
+
+    const rowEl = cell.closest("tr[data-row-id]");
+    const rowId = Number(rowEl?.dataset?.rowId);
+    const field = cell.dataset.field;
+    const beforeRaw = cell.dataset.previousValue ?? "";
+    const afterRaw = cell.innerText.trim();
+
+    if (!field || !Number.isFinite(rowId)) {
+        statusEl.innerText = "Unable to update this cell.";
+        return;
+    }
+
+    const parsedBefore = parseEditableValue(field, beforeRaw);
+    const parsedAfter = parseEditableValue(field, afterRaw);
+
+    if (!parsedAfter.valid) {
+        statusEl.innerText = parsedAfter.message;
+        cell.innerText = beforeRaw;
+        return;
+    }
+
+    if (parsedBefore.valid && editableValuesEqual(parsedBefore.value, parsedAfter.value)) {
+        cell.innerText = parsedAfter.display;
+        return;
+    }
+
+    const result = await updateTipField(rowId, field, parsedAfter.value);
+    if (!result.ok) {
+        cell.innerText = beforeRaw;
+        return;
+    }
+});
 
 form.addEventListener("submit", async function (e) {
     e.preventDefault();
