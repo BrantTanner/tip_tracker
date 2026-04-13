@@ -30,6 +30,27 @@
 	box-sizing: border-box;
 }
 
+.tableControls {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin: 16px 0 10px;
+	flex-wrap: wrap;
+}
+
+.tableControls label {
+	font-weight: 600;
+}
+
+.tableControls select {
+	min-width: 180px;
+	padding: 8px 10px;
+	border: 1px solid #c8ced8;
+	border-radius: 8px;
+	background: #fff;
+	font: inherit;
+}
+
 .tipsTableWrap {
 	position: relative;
 	display: inline-block;

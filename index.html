@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>TipTracker</title>
+    <link rel="icon" href="images/dollarSignFavicon.png" type="image/svg+xml">
     <link rel="stylesheet" href="styles/styles.css">
 </head>
 <body>
@@ -42,6 +43,22 @@
             <label>Cruise Ship: <input type="text" name="ship" required></label>
             <button type="submit">Submit</button>
         </form>
+
+        <div id="tableControls" class="tableControls">
+            <label for="sortBy">Sort by</label>
+            <select id="sortBy">
+                <option value="created_at">Date</option>
+                <option value="tips">Tips</option>
+                <option value="guests">Guests</option>
+                <option value="tour">Tour</option>
+                <option value="ship">Cruise Ship</option>
+            </select>
+            <label for="sortDirectionSelect">Order</label>
+            <select id="sortDirectionSelect">
+                <option value="desc">Highest to Lowest</option>
+                <option value="asc">Lowest to Highest</option>
+            </select>
+        </div>
         
         <p id="status"></p>
         <div id="dataDisplay"></div>
