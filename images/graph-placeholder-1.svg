@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400" viewBox="0 0 1200 400" role="img" aria-labelledby="title desc">
+  <title id="title">Graph Placeholder One</title>
+  <desc id="desc">Placeholder image for future graph content.</desc>
+  <defs>
+    <linearGradient id="bg1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#eef3fb"/>
+      <stop offset="100%" stop-color="#dfe8f7"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="400" fill="url(#bg1)"/>
+  <g stroke="#b7c6e2" stroke-width="2" opacity="0.8">
+    <line x1="80" y1="330" x2="1120" y2="330"/>
+    <line x1="80" y1="70" x2="80" y2="330"/>
+    <line x1="80" y1="250" x2="1120" y2="250"/>
+    <line x1="80" y1="170" x2="1120" y2="170"/>
+  </g>
+  <polyline fill="none" stroke="#2a6ecb" stroke-width="8" points="120,280 280,220 430,235 590,160 740,190 900,120 1060,145"/>
+  <text x="600" y="205" text-anchor="middle" font-size="42" fill="#36598f" font-family="Arial, sans-serif">Graph Placeholder 1</text>
+</svg>

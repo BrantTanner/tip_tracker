@@ -23,10 +23,14 @@ export function formatDateOnly(value) {
     return `${year}-${month}-${day}`;
 }
 
-// Builds the table HTML for the current rows, including editable cells and the delete control.
-export function buildTipTableHtml(rows, { editableFields, headerLabels }) {
+// Builds the table HTML for the current rows, including optional remove-mode checkboxes.
+export function buildTipTableHtml(rows, { editableFields, headerLabels, removeMode = false, selectedRowIds = new Set() }) {
     const displayColumns = ["tips", "guests", "tour", "ship", "created_at"];
     let html = '<div class="tipsTableWrap"><table class="tipsTable" border="1"><tr>';
+
+    if (removeMode) {
+        html += '<th class="selectCol">Select</th>';
+    }
 
     displayColumns.forEach((key) => {
         html += `<th>${headerLabels[key]}</th>`;
@@ -36,6 +40,11 @@ export function buildTipTableHtml(rows, { editableFields, headerLabels }) {
 
     rows.forEach((row) => {
         html += `<tr data-row-id="${row.id}">`;
+
+        if (removeMode) {
+            const isChecked = selectedRowIds.has(row.id) ? "checked" : "";
+            html += `<td class="selectCell"><input type="checkbox" class="rowDeleteCheckbox" data-row-id="${row.id}" ${isChecked} /></td>`;
+        }
 
         displayColumns.forEach((key) => {
             let value = row[key];
@@ -58,6 +67,6 @@ export function buildTipTableHtml(rows, { editableFields, headerLabels }) {
         html += "</tr>";
     });
 
-    html += '</table><button type="button" class="hoverDeleteBtn" aria-label="Delete row" hidden>&times;</button></div>';
+    html += "</table></div>";
     return html;
 }

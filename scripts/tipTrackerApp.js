@@ -30,6 +30,13 @@ export function initializeTipTrackerApp() {
     const logoutBtn = document.getElementById("logout");
     const closeAuthModalBtn = document.getElementById("closeAuthModal");
     const authModalEl = document.getElementById("authModal");
+    const openTipModalBtn = document.getElementById("openTipModal");
+    const closeTipModalBtn = document.getElementById("closeTipModal");
+    const tipModalEl = document.getElementById("tipModal");
+    const removeTipsBtn = document.getElementById("removeTipsBtn");
+    const graphSectionEl = document.getElementById("graphSection");
+    const tableControlsEl = document.getElementById("tableControls");
+    const loggedOutPromptEl = document.getElementById("loggedOutPrompt");
     const sortBySelect = document.getElementById("sortBy");
     const sortDirectionSelect = document.getElementById("sortDirectionSelect");
     const loggedOutActionsEl = document.getElementById("loggedOutActions");
@@ -42,13 +49,21 @@ export function initializeTipTrackerApp() {
     let currentRows = [];
     let currentSortField = sortBySelect?.value || "created_at";
     let currentSortDirection = getDefaultSortDirection(currentSortField);
+    let isRemoveMode = false;
+    let selectedRowIds = new Set();
 
     const EDITABLE_FIELDS = new Set(["tips", "guests", "tour", "ship", "created_at"]);
+
+    function setAuthStatus(message) {
+        if (authStatusEl) {
+            authStatusEl.innerText = message;
+        }
+    }
 
     // Clears the display when no data should be shown yet.
     function clearDataViews() {
         currentRows = [];
-        dataDisplayEl.innerText = "Log in to view your tips.";
+        dataDisplayEl.innerText = "";
     }
 
     // Opens the auth dialog so the user can log in or create an account.
@@ -61,15 +76,63 @@ export function initializeTipTrackerApp() {
         authModalEl.style.display = "none";
     }
 
+    // Opens the tip input dialog for adding a new row.
+    function openTipModal() {
+        tipModalEl.style.display = "flex";
+    }
+
+    // Closes the tip input dialog.
+    function closeTipModal() {
+        tipModalEl.style.display = "none";
+    }
+
+    // Tries to infer a friendly first name from the email local-part.
+    function getDisplayFirstNameFromEmail(email) {
+        if (!email || typeof email !== "string") {
+            return "there";
+        }
+
+        const localPart = email.split("@")[0] ?? "";
+        const firstToken = localPart.split(/[._-]+/)[0]?.trim();
+
+        if (!firstToken) {
+            return "there";
+        }
+
+        return firstToken.charAt(0).toUpperCase() + firstToken.slice(1).toLowerCase();
+    }
+
+    // Uses Google profile metadata when available, then falls back to email parsing.
+    function getDisplayFirstName(user) {
+        const metadata = user?.user_metadata ?? {};
+        const givenName = metadata.given_name;
+
+        if (typeof givenName === "string" && givenName.trim()) {
+            return givenName.trim();
+        }
+
+        const fullName = metadata.full_name ?? metadata.name;
+        if (typeof fullName === "string" && fullName.trim()) {
+            return fullName.trim().split(/\s+/)[0];
+        }
+
+        return getDisplayFirstNameFromEmail(user?.email);
+    }
+
     // Updates the visible auth controls so the page matches the current session.
     function setAuthUi(user) {
         if (user) {
-            const displayEmail = user.email ?? "your account";
-            currentUserEl.innerText = `Logged in as: ${displayEmail}`;
+            const firstName = getDisplayFirstName(user);
+            currentUserEl.innerText = `Hi, ${firstName}`;
             loggedOutActionsEl.style.display = "none";
-            loggedInActionsEl.style.display = "block";
+            loggedInActionsEl.style.display = "flex";
+            if (loggedOutPromptEl) loggedOutPromptEl.hidden = true;
+            if (graphSectionEl) graphSectionEl.hidden = false;
+            if (tableControlsEl) tableControlsEl.hidden = false;
+            if (statusEl) statusEl.hidden = false;
+            if (dataDisplayEl) dataDisplayEl.hidden = false;
             closeAuthModal();
-            authStatusEl.innerText = "";
+            setAuthStatus("");
             form.querySelectorAll("input, button").forEach((el) => {
                 el.disabled = false;
             });
@@ -78,6 +141,11 @@ export function initializeTipTrackerApp() {
             currentUserEl.innerText = "";
             loggedOutActionsEl.style.display = "block";
             loggedInActionsEl.style.display = "none";
+            if (loggedOutPromptEl) loggedOutPromptEl.hidden = false;
+            if (graphSectionEl) graphSectionEl.hidden = true;
+            if (tableControlsEl) tableControlsEl.hidden = true;
+            if (statusEl) statusEl.hidden = true;
+            if (dataDisplayEl) dataDisplayEl.hidden = true;
             closeAuthModal();
             form.querySelectorAll("input, button").forEach((el) => {
                 el.disabled = true;
@@ -93,7 +161,7 @@ export function initializeTipTrackerApp() {
         const password = passwordInput.value;
 
         if (!email || !password) {
-            authStatusEl.innerText = "Enter email and password first.";
+            setAuthStatus("Enter email and password first.");
             return null;
         }
 
@@ -132,32 +200,60 @@ export function initializeTipTrackerApp() {
         updateSortDirectionSelect();
     }
 
-    // Deletes a tip row for the signed-in user and reloads the table afterwards.
-    async function deleteTipRow(id) {
+    // Deletes many tip rows for the signed-in user.
+    async function deleteTipRows(ids) {
         if (!currentUser) {
-            authStatusEl.innerText = "Log in before deleting tips.";
-            return;
+            setAuthStatus("Log in before deleting tips.");
+            return false;
+        }
+
+        if (!ids || ids.length === 0) {
+            statusEl.innerText = "Select at least one row to remove.";
+            return false;
         }
 
         const { error } = await supabase
             .from(TABLE_NAME)
             .delete()
-            .eq("id", id)
+            .in("id", ids)
             .eq("user_id", currentUser.id);
 
         if (error) {
-            statusEl.innerText = `Error deleting row: ${error.message}`;
-            return;
+            statusEl.innerText = `Error deleting rows: ${error.message}`;
+            return false;
         }
 
-        statusEl.innerText = "Row deleted.";
-        await loadTips();
+        statusEl.innerText = `${ids.length} row(s) deleted.`;
+        return true;
+    }
+
+    // Updates button text and table alignment for remove mode.
+    function updateRemoveModeUi() {
+        if (removeTipsBtn) {
+            removeTipsBtn.innerText = isRemoveMode ? "Delete Selected" : "Remove";
+            removeTipsBtn.classList.toggle("active", isRemoveMode);
+        }
+
+        const isMobile = window.matchMedia("(max-width: 699px)").matches;
+        dataDisplayEl.classList.toggle("mobileCentered", isMobile && !isRemoveMode);
+    }
+
+    // Enables or disables remove mode and refreshes the current table view.
+    function setRemoveMode(active) {
+        isRemoveMode = active;
+
+        if (!active) {
+            selectedRowIds = new Set();
+        }
+
+        updateRemoveModeUi();
+        renderTable(getSortedRows(currentRows, currentSortField, currentSortDirection));
     }
 
     // Sends a single inline edit to Supabase after the user changes a cell.
     async function updateTipField(id, field, value) {
         if (!currentUser) {
-            authStatusEl.innerText = "Log in before editing tips.";
+            setAuthStatus("Log in before editing tips.");
             return { ok: false };
         }
 
@@ -177,68 +273,11 @@ export function initializeTipTrackerApp() {
         return { ok: true };
     }
 
-    // Watches the rendered table so the hover delete button tracks the row under the pointer.
-    function setupHoverDeleteControl() {
-        const wrapper = dataDisplayEl.querySelector(".tipsTableWrap");
-        const table = wrapper?.querySelector(".tipsTable");
-        const deleteBtn = wrapper?.querySelector(".hoverDeleteBtn");
-
-        if (!wrapper || !table || !deleteBtn) {
-            return;
-        }
-
-        function hideDeleteButton() {
-            deleteBtn.hidden = true;
-            deleteBtn.removeAttribute("data-row-id");
-        }
-
-        function positionDeleteButtonForRow(row) {
-            const id = Number(row.dataset.rowId);
-            if (!Number.isFinite(id)) {
-                hideDeleteButton();
-                return;
-            }
-
-            const wrapperRect = wrapper.getBoundingClientRect();
-            const rowRect = row.getBoundingClientRect();
-            const top = rowRect.top - wrapperRect.top + rowRect.height / 2;
-
-            deleteBtn.style.top = `${top}px`;
-            deleteBtn.dataset.rowId = String(id);
-            deleteBtn.hidden = false;
-        }
-
-        wrapper.addEventListener("mousemove", (event) => {
-            if (event.target.closest(".hoverDeleteBtn")) {
-                return;
-            }
-
-            const row = event.target.closest("tr[data-row-id]");
-            if (row) {
-                positionDeleteButtonForRow(row);
-            }
-        });
-
-        wrapper.addEventListener("mouseleave", () => {
-            hideDeleteButton();
-        });
-
-        deleteBtn.addEventListener("click", async () => {
-            const id = Number(deleteBtn.dataset.rowId);
-            if (!Number.isFinite(id)) {
-                statusEl.innerText = "Unable to delete this row.";
-                return;
-            }
-
-            await deleteTipRow(id);
-            hideDeleteButton();
-        });
-    }
-
     // Renders the current rows into HTML and reattaches the table-specific behaviors.
     function renderTable(rows) {
         if (!rows || rows.length === 0) {
             dataDisplayEl.innerText = "No data yet.";
+            updateRemoveModeUi();
             return;
         }
 
@@ -251,11 +290,12 @@ export function initializeTipTrackerApp() {
         };
 
         dataDisplayEl.innerHTML = buildTipTableHtml(rows, {
-            editableFields: EDITABLE_FIELDS,
-            headerLabels
+            editableFields: isRemoveMode ? new Set() : EDITABLE_FIELDS,
+            headerLabels,
+            removeMode: isRemoveMode,
+            selectedRowIds
         });
-
-        setupHoverDeleteControl();
+        updateRemoveModeUi();
     }
 
     // Loads the current user's rows from Supabase and renders them in the active sort order.
@@ -283,6 +323,10 @@ export function initializeTipTrackerApp() {
 
     // Stores the original text when a cell gains focus so edits can be compared later.
     dataDisplayEl.addEventListener("focusin", (event) => {
+        if (isRemoveMode) {
+            return;
+        }
+
         const cell = event.target.closest(".editableCell");
         if (!cell) {
             return;
@@ -293,6 +337,10 @@ export function initializeTipTrackerApp() {
 
     // Handles keyboard shortcuts for inline editing, including submit and cancel.
     dataDisplayEl.addEventListener("keydown", (event) => {
+        if (isRemoveMode) {
+            return;
+        }
+
         const cell = event.target.closest(".editableCell");
         if (!cell) {
             return;
@@ -313,6 +361,10 @@ export function initializeTipTrackerApp() {
 
     // Validates the final cell value and pushes the update to the database if needed.
     dataDisplayEl.addEventListener("focusout", async (event) => {
+        if (isRemoveMode) {
+            return;
+        }
+
         const cell = event.target.closest(".editableCell");
         if (!cell) {
             return;
@@ -350,12 +402,31 @@ export function initializeTipTrackerApp() {
         }
     });
 
+    // Tracks selected rows while remove mode is active.
+    dataDisplayEl.addEventListener("change", (event) => {
+        const checkbox = event.target.closest(".rowDeleteCheckbox");
+        if (!checkbox) {
+            return;
+        }
+
+        const rowId = Number(checkbox.dataset.rowId);
+        if (!Number.isFinite(rowId)) {
+            return;
+        }
+
+        if (checkbox.checked) {
+            selectedRowIds.add(rowId);
+        } else {
+            selectedRowIds.delete(rowId);
+        }
+    });
+
     // Submits a new tip row for the signed-in user.
     form.addEventListener("submit", async function (e) {
         e.preventDefault();
 
         if (!currentUser) {
-            authStatusEl.innerText = "Log in before submitting tips.";
+            setAuthStatus("Log in before submitting tips.");
             return;
         }
 
@@ -370,6 +441,10 @@ export function initializeTipTrackerApp() {
             user_id: currentUser.id
         };
 
+        // Close and clear immediately so the next add starts fresh.
+        form.reset();
+        closeTipModal();
+
         const { error } = await supabase.from(TABLE_NAME).insert([data]);
 
         if (error) {
@@ -378,19 +453,56 @@ export function initializeTipTrackerApp() {
         }
 
         statusEl.innerText = "Submitted!";
-        form.reset();
+        await loadTips();
+    });
+
+    // Opens the tip modal from the add-tour button near table controls.
+    openTipModalBtn?.addEventListener("click", () => {
+        if (!currentUser) {
+            setAuthStatus("Log in before adding tips.");
+            return;
+        }
+
+        openTipModal();
+    });
+
+    // Closes the tip modal without submitting.
+    closeTipModalBtn?.addEventListener("click", () => {
+        closeTipModal();
+    });
+
+    // First tap enters remove mode, second tap deletes checked rows.
+    removeTipsBtn?.addEventListener("click", async () => {
+        if (!currentUser) {
+            setAuthStatus("Log in before deleting tips.");
+            return;
+        }
+
+        if (!isRemoveMode) {
+            setRemoveMode(true);
+            statusEl.innerText = "Select rows to remove, then tap Delete Selected.";
+            return;
+        }
+
+        const idsToDelete = Array.from(selectedRowIds);
+        const didDelete = await deleteTipRows(idsToDelete);
+        if (!didDelete) {
+            return;
+        }
+
+        setRemoveMode(false);
         await loadTips();
     });
 
     // Opens the auth modal from the login button in the header.
     loginBtn.addEventListener("click", () => {
-        authStatusEl.innerText = "";
+        setAuthStatus("");
         openAuthModal();
     });
 
     // Opens the auth modal from the sign-up button in the header.
     signupBtn.addEventListener("click", () => {
-        authStatusEl.innerText = "";
+        setAuthStatus("");
         openAuthModal();
     });
 
@@ -406,15 +518,15 @@ export function initializeTipTrackerApp() {
             return;
         }
 
-        authStatusEl.innerText = "Logging in...";
+        setAuthStatus("Logging in...");
         const { error } = await supabase.auth.signInWithPassword(values);
 
         if (error) {
-            authStatusEl.innerText = `Login failed: ${error.message}`;
+            setAuthStatus(`Login failed: ${error.message}`);
             return;
         }
 
-        authStatusEl.innerText = "Logged in.";
+        setAuthStatus("Logged in.");
     });
 
     // Creates a new account from the auth dialog.
@@ -424,20 +536,20 @@ export function initializeTipTrackerApp() {
             return;
         }
 
-        authStatusEl.innerText = "Creating account...";
+        setAuthStatus("Creating account...");
         const { error } = await supabase.auth.signUp(values);
 
         if (error) {
-            authStatusEl.innerText = `Sign up failed: ${error.message}`;
+            setAuthStatus(`Sign up failed: ${error.message}`);
             return;
         }
 
-        authStatusEl.innerText = "Account created. If email confirmation is enabled, confirm your email before login.";
+        setAuthStatus("Account created. If email confirmation is enabled, confirm your email before login.");
     });
 
     // Starts the OAuth flow for Google sign-in.
     googleLoginBtn.addEventListener("click", async () => {
-        authStatusEl.innerText = "Redirecting to Google...";
+        setAuthStatus("Redirecting to Google...");
 
         const { error } = await supabase.auth.signInWithOAuth({
             provider: "google",
@@ -447,24 +559,24 @@ export function initializeTipTrackerApp() {
         });
 
         if (error) {
-            authStatusEl.innerText = `Google login failed: ${error.message}`;
+            setAuthStatus(`Google login failed: ${error.message}`);
         }
     });
 
     // Signs the current user out locally and resets the visible state.
     logoutBtn.addEventListener("click", async () => {
-        authStatusEl.innerText = "Logging out...";
+        setAuthStatus("Logging out...");
 
         currentUser = null;
         setAuthUi(null);
         statusEl.innerText = "";
         emailInput.value = "";
         passwordInput.value = "";
-        authStatusEl.innerText = "Logged out.";
+        setAuthStatus("Logged out.");
 
         const { error } = await supabase.auth.signOut({ scope: "local" });
         if (error) {
-            authStatusEl.innerText = `Logged out locally. Session cleanup warning: ${error.message}`;
+            setAuthStatus(`Logged out locally. Session cleanup warning: ${error.message}`);
         }
     });
 
@@ -493,8 +605,42 @@ export function initializeTipTrackerApp() {
         currentUser = session?.user ?? null;
         setAuthUi(currentUser);
 
+        if (!currentUser) {
+            setRemoveMode(false);
+        }
+
         if (currentUser) {
             await loadTips();
+        }
+    });
+
+    // Handles the filter button toggle for mobile view.
+    const filterBtn = document.getElementById("filterBtn");
+    const filterOptions = document.getElementById("filterOptions");
+    const orderBtn = document.getElementById("orderBtn");
+    const orderOptions = document.getElementById("orderOptions");
+
+    if (filterBtn && filterOptions) {
+        filterBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            filterOptions.classList.toggle("open");
+            orderOptions.classList.remove("open");
+        });
+    }
+
+    if (orderBtn && orderOptions) {
+        orderBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            orderOptions.classList.toggle("open");
+            filterOptions.classList.remove("open");
+        });
+    }
+
+    // Close any open dropdown when clicking outside.
+    document.addEventListener("click", (event) => {
+        if (!event.target.closest(".controlGroup")) {
+            if (filterOptions) filterOptions.classList.remove("open");
+            if (orderOptions) orderOptions.classList.remove("open");
         }
     });
 
@@ -511,7 +657,11 @@ export function initializeTipTrackerApp() {
         if (currentUser) {
             await loadTips();
         }
+
+        updateRemoveModeUi();
     }
+
+    window.addEventListener("resize", updateRemoveModeUi);
 
     initializeAuth();
 }

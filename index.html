@@ -9,6 +9,8 @@
 </head>
 <body>
     <section id="authControls">
+        <h1 id="pageTitle">Tip Tracker</h1>
+
         <div id="loggedOutActions">
             <button id="login" type="button">Login</button>
             <button id="signup" type="button">Sign Up</button>
@@ -18,7 +20,6 @@
             <p id="currentUser"></p>
             <button id="logout" type="button">Logout</button>
         </div>
-        <p id="authStatus"></p>
     </section>
 
     <div id="authModal" style="display: none;">
@@ -34,30 +35,65 @@
     </div>
 
     <section id="appContent">
-        <h1>Tip Tracker</h1>
+        <div id="tipModal" style="display: none;">
+            <div class="modalCard">
+                <h2>Add Tour</h2>
+                <form id="tipForm">
+                    <label>Tips: <input type="number" name="tips" required></label>
+                    <label>Guests: <input type="number" name="guests" required></label>
+                    <label>Tour: <input type="text" name="tour" required></label>
+                    <label>Cruise Ship: <input type="text" name="ship" required></label>
+                    <button type="submit">Submit</button>
+                </form>
+                <button id="closeTipModal" type="button">Close</button>
+            </div>
+        </div>
 
-        <form id="tipForm">
-            <label>Tips: <input type="number" name="tips" required></label>
-            <label>Guests: <input type="number" name="guests" required></label>
-            <label>Tour: <input type="text" name="tour" required></label>
-            <label>Cruise Ship: <input type="text" name="ship" required></label>
-            <button type="submit">Submit</button>
-        </form>
+        <p id="loggedOutPrompt" hidden>log in or signup to start tracking!</p>
+
+        <section id="graphSection" aria-label="Graph placeholders">
+            <img class="graphPlaceholder" src="images/graph-placeholder-1.svg" alt="Graph placeholder one">
+            <img class="graphPlaceholder" src="images/graph-placeholder-2.svg" alt="Graph placeholder two">
+        </section>
 
         <div id="tableControls" class="tableControls">
-            <label for="sortBy">Sort by</label>
-            <select id="sortBy">
-                <option value="created_at">Date</option>
-                <option value="tips">Tips</option>
-                <option value="guests">Guests</option>
-                <option value="tour">Tour</option>
-                <option value="ship">Cruise Ship</option>
-            </select>
-            <label for="sortDirectionSelect">Order</label>
-            <select id="sortDirectionSelect">
-                <option value="desc">Highest to Lowest</option>
-                <option value="asc">Lowest to Highest</option>
-            </select>
+            
+            <div>
+                <button id="openTipModal" class="addTipBtn" type="button">Add Tour</button>
+                <button id="removeTipsBtn" class="removeTipsBtn" type="button">Remove</button>
+            </div>
+            
+            <div class="controlGroup"> 
+                <button id="filterBtn" class="filterBtn" type="button">
+                    <svg class="filterIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                    </svg>
+                    Filter
+                </button>
+                <div id="filterOptions" class="filterOptions">
+                    <select id="sortBy">
+                        <option value="created_at">Date</option>
+                        <option value="tips">Tips</option>
+                        <option value="guests">Guests</option>
+                        <option value="tour">Tour</option>
+                        <option value="ship">Cruise Ship</option>
+                    </select>
+                </div>
+
+                <button id="orderBtn" class="orderBtn" type="button">
+                    <svg class="orderIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 6h18M3 12h18M3 18h18"></path>
+                    </svg>
+                    Order
+                </button>
+                <div id="orderOptions" class="orderOptions">
+                    <select id="sortDirectionSelect">
+                        <option value="desc">Highest to Lowest</option>
+                        <option value="asc">Lowest to Highest</option>
+                    </select>
+                </div>
+            </div>
+            
         </div>
         
         <p id="status"></p>
