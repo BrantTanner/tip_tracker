@@ -223,43 +223,60 @@ body {
 	max-width: 100%;
 	overflow-x: auto;
 	-webkit-overflow-scrolling: touch;
-	border: 1px solid #d6dbe3;
-	border-radius: 12px;
-	background: #fff;
+	border-top-right-radius: 10px;
+	border-bottom-right-radius: 10px;
+	border-top-left-radius: 10px;
+	border-bottom-left-radius: 10px;
+	background: #ffffff;
 	box-shadow: 0 8px 24px rgba(10, 20, 35, 0.06);
 }
 
 .tipsTable {
 	width: 100%;
 	min-width: 760px;
-	border-collapse: collapse;
+	border-collapse: separate;
 	border-spacing: 0;
-	font-size: 0.95rem;
+	font-size: 1.1rem;
 	color: #1b2638;
 	background: #fff;
+	border: 0;
 }
 
 .tipsTable th {
 	padding: 12px 14px;
-	text-align: left;
-	font-size: 0.82rem;
+	text-align: center;
+	font-size: 1.12rem;
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
-	color: #4d5f7a;
-	background: #f1f5fb;
+	color: #4e6484;
+	background: #f5f7fa;
+	border-top: none;
+	border-left: none;
+	border-right: none;
 	border-bottom: 1px solid #d6dbe3;
 	white-space: nowrap;
 }
 
+.tipsTable tr:first-child th:first-child {
+	border-top-left-radius: 10px;
+	border-bottom-left-radius: 10px;
+}
+
+.tipsTable tr:first-child th:last-child {
+	border-top-right-radius: 10px;
+	border-bottom-right-radius: 10px;
+}
+
 .tipsTable td {
 	padding: 12px 14px;
+	text-align: center;
+	font-size: 1.1rem;
+	border-top: none;
+	border-left: none;
+	border-right: none;
 	border-bottom: 1px solid #e7ebf2;
 	vertical-align: middle;
 	background: #fff;
-}
-
-.tipsTable tr:nth-child(even) td {
-	background: #fafcfe;
 }
 
 .tipsTable tr:hover td {
@@ -279,6 +296,7 @@ body {
 .rowDeleteCheckbox {
 	width: 18px;
 	height: 18px;
+	display: block;
 	cursor: pointer;
 }
 

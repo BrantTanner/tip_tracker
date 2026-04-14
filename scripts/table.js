@@ -26,7 +26,7 @@ export function formatDateOnly(value) {
 // Builds the table HTML for the current rows, including optional remove-mode checkboxes.
 export function buildTipTableHtml(rows, { editableFields, headerLabels, removeMode = false, selectedRowIds = new Set() }) {
     const displayColumns = ["tips", "guests", "tour", "ship", "created_at"];
-    let html = '<div class="tipsTableWrap"><table class="tipsTable" border="1"><tr>';
+    let html = '<div class="tipsTableWrap"><table class="tipsTable"><tr>';
 
     if (removeMode) {
         html += '<th class="selectCol">Select</th>';
