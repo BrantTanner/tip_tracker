@@ -22,8 +22,7 @@ export function initializeTipTrackerApp() {
     const statusEl = document.getElementById("status");
     const authStatusEl = document.getElementById("authStatus");
     const dataDisplayEl = document.getElementById("dataDisplay");
-    const loginBtn = document.getElementById("login");
-    const signupBtn = document.getElementById("signup");
+    const googleSignInBtn = document.getElementById("googleSignInBtn");
     const modalLoginBtn = document.getElementById("modalLogin");
     const modalSignupBtn = document.getElementById("modalSignup");
     const googleLoginBtn = document.getElementById("googleLogin");
@@ -35,6 +34,10 @@ export function initializeTipTrackerApp() {
     const tipModalEl = document.getElementById("tipModal");
     const removeTipsBtn = document.getElementById("removeTipsBtn");
     const graphSectionEl = document.getElementById("graphSection");
+    const tipsGuestsChartCanvas = document.getElementById("tipsGuestsChart");
+    const chartByDayBtn = document.getElementById("chartByDayBtn");
+    const chartByWeekBtn = document.getElementById("chartByWeekBtn");
+    const chartByMonthBtn = document.getElementById("chartByMonthBtn");
     const tableControlsEl = document.getElementById("tableControls");
     const loggedOutPromptEl = document.getElementById("loggedOutPrompt");
     const sortBySelect = document.getElementById("sortBy");
@@ -45,12 +48,15 @@ export function initializeTipTrackerApp() {
     const passwordInput = document.getElementById("authPassword");
     const currentUserEl = document.getElementById("currentUser");
 
+    let tipsGuestsChart = null;
+    let currentChartGranularity = "day";
     let currentUser = null;
     let currentRows = [];
     let currentSortField = sortBySelect?.value || "created_at";
     let currentSortDirection = getDefaultSortDirection(currentSortField);
     let isRemoveMode = false;
     let selectedRowIds = new Set();
+    const chartGranularityButtons = [chartByDayBtn, chartByWeekBtn, chartByMonthBtn].filter(Boolean);
 
     const EDITABLE_FIELDS = new Set(["tips", "guests", "tour", "ship", "created_at"]);
 
@@ -64,6 +70,374 @@ export function initializeTipTrackerApp() {
     function clearDataViews() {
         currentRows = [];
         dataDisplayEl.innerText = "";
+        renderTipsGuestsChart([]);
+        renderSummaryBoxes([]);
+    }
+
+    // Groups the user's rows by date for the combined tips/guests line chart.
+    function buildTipsGuestsChartData(rows, granularity) {
+        const groupedByDate = new Map();
+
+        function toDateKey(dateObj) {
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+            const day = String(dateObj.getDate()).padStart(2, "0");
+            return `${year}-${month}-${day}`;
+        }
+
+        function toDateFromKey(dateKey) {
+            const parsed = new Date(`${dateKey}T00:00:00`);
+            if (Number.isNaN(parsed.getTime())) {
+                return null;
+            }
+            return parsed;
+        }
+
+        function getWeekStartKey(dateKey) {
+            const parsed = toDateFromKey(dateKey);
+            if (!parsed) {
+                return "Unknown";
+            }
+
+            const weekStart = new Date(parsed);
+            const dayIndex = weekStart.getDay();
+            const mondayOffset = (dayIndex + 6) % 7;
+            weekStart.setDate(weekStart.getDate() - mondayOffset);
+            return toDateKey(weekStart);
+        }
+
+        function getBucketKey(dateKey) {
+            if (dateKey === "Unknown") {
+                return "Unknown";
+            }
+
+            if (granularity === "month") {
+                return dateKey.slice(0, 7);
+            }
+
+            if (granularity === "week") {
+                return getWeekStartKey(dateKey);
+            }
+
+            return dateKey;
+        }
+
+        function getBucketSortValue(bucketKey) {
+            if (!bucketKey || bucketKey === "Unknown") {
+                return Number.POSITIVE_INFINITY;
+            }
+
+            const parseValue = granularity === "month"
+                ? new Date(`${bucketKey}-01T00:00:00`)
+                : new Date(`${bucketKey}T00:00:00`);
+
+            return parseValue.getTime();
+        }
+
+        function formatChartDateLabel(bucketKey) {
+            if (!bucketKey || bucketKey === "Unknown") {
+                return "Unknown";
+            }
+
+            if (granularity === "month") {
+                const parsedMonth = new Date(`${bucketKey}-01T00:00:00`);
+                if (Number.isNaN(parsedMonth.getTime())) {
+                    return bucketKey;
+                }
+
+                return parsedMonth.toLocaleDateString(undefined, {
+                    month: "long",
+                    year: "numeric"
+                });
+            }
+
+            if (granularity === "week") {
+                const parsedWeek = new Date(`${bucketKey}T00:00:00`);
+                if (Number.isNaN(parsedWeek.getTime())) {
+                    return bucketKey;
+                }
+
+                return `Week of ${parsedWeek.toLocaleDateString(undefined, {
+                    month: "long",
+                    day: "numeric"
+                })}`;
+            }
+
+            const parsed = new Date(`${bucketKey}T00:00:00`);
+            if (Number.isNaN(parsed.getTime())) {
+                return bucketKey;
+            }
+
+            return parsed.toLocaleDateString(undefined, {
+                month: "long",
+                day: "numeric"
+            });
+        }
+
+        rows.forEach((row) => {
+            const rawCreatedAt = typeof row.created_at === "string" ? row.created_at : "";
+            const dateValue = rawCreatedAt ? new Date(rawCreatedAt) : null;
+            const dateLabel = rawCreatedAt.length >= 10
+                ? rawCreatedAt.slice(0, 10)
+                : dateValue && !Number.isNaN(dateValue.getTime())
+                    ? dateValue.toISOString().slice(0, 10)
+                    : "Unknown";
+            const bucketKey = getBucketKey(dateLabel);
+
+            const existing = groupedByDate.get(bucketKey) ?? { tips: 0, guests: 0 };
+            existing.tips += Number(row.tips) || 0;
+            existing.guests += Number(row.guests) || 0;
+            groupedByDate.set(bucketKey, existing);
+        });
+
+        const labels = Array.from(groupedByDate.keys()).sort((left, right) => {
+            return getBucketSortValue(left) - getBucketSortValue(right);
+        });
+
+        return {
+            labels: labels.map((label) => formatChartDateLabel(label)),
+            tipsData: labels.map((label) => groupedByDate.get(label)?.tips ?? 0),
+            guestsData: labels.map((label) => groupedByDate.get(label)?.guests ?? 0)
+        };
+    }
+
+    function updateChartGranularityUi() {
+        chartGranularityButtons.forEach((button) => {
+            const isActive = button.dataset.granularity === currentChartGranularity;
+            button.classList.toggle("active", isActive);
+            button.setAttribute("aria-pressed", String(isActive));
+        });
+    }
+
+    function setChartGranularity(granularity) {
+        if (!["day", "week", "month"].includes(granularity)) {
+            return;
+        }
+
+        currentChartGranularity = granularity;
+        updateChartGranularityUi();
+        renderTipsGuestsChart(currentRows);
+        renderSummaryBoxes(currentRows);
+    }
+
+    // Renders or updates the combined tips/guests chart.
+    function renderTipsGuestsChart(rows) {
+        if (!tipsGuestsChartCanvas || typeof Chart === "undefined") {
+            return;
+        }
+
+        const chartData = buildTipsGuestsChartData(rows, currentChartGranularity);
+        const xAxisTitle = currentChartGranularity === "month"
+            ? "Month"
+            : currentChartGranularity === "week"
+                ? "Week"
+                : "Day";
+
+        if (tipsGuestsChart) {
+            tipsGuestsChart.destroy();
+            tipsGuestsChart = null;
+        }
+
+        if (!chartData.labels.length) {
+            const context = tipsGuestsChartCanvas.getContext("2d");
+            if (context) {
+                context.clearRect(0, 0, tipsGuestsChartCanvas.width, tipsGuestsChartCanvas.height);
+            }
+            return;
+        }
+
+        const context = tipsGuestsChartCanvas.getContext("2d");
+        if (!context) {
+            return;
+        }
+
+        tipsGuestsChart = new Chart(context, {
+            type: "line",
+            data: {
+                labels: chartData.labels,
+                datasets: [
+                    {
+                        label: "Tips by Date",
+                        data: chartData.tipsData,
+                        borderColor: "#1e66d0",
+                        backgroundColor: "rgba(30, 102, 208, 0.12)",
+                        tension: 0.35,
+                        fill: false,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        borderWidth: 3,
+                        yAxisID: "y"
+                    },
+                    {
+                        label: "Guests by Date",
+                        data: chartData.guestsData,
+                        borderColor: "#16a34a",
+                        backgroundColor: "rgba(22, 163, 74, 0.12)",
+                        tension: 0.35,
+                        fill: false,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        borderWidth: 3,
+                        yAxisID: "y1"
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: "index",
+                    intersect: false
+                },
+                plugins: {
+                    legend: {
+                        position: "top"
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label(context) {
+                                const value = context.parsed.y;
+                                if (context.dataset.label === "Tips by Date") {
+                                    return ` Tips: $${Number(value).toFixed(2)}`;
+                                }
+                                return ` Guests: ${value}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: xAxisTitle
+                        }
+                    },
+                    y: {
+                        position: "left",
+                        title: {
+                            display: true,
+                            text: "Tips ($)"
+                        },
+                        beginAtZero: true
+                    },
+                    y1: {
+                        position: "right",
+                        title: {
+                            display: true,
+                            text: "Guests"
+                        },
+                        beginAtZero: true,
+                        grid: {
+                            drawOnChartArea: false
+                        }
+                    }
+                }
+            }
+        });
+        renderSummaryBoxes(currentRows);
+    }
+
+    // Calculates summary statistics from the current rows.
+    function calculateSummaries(rows) {
+        let totalTips = 0;
+        let totalGuests = 0;
+        const tourCounts = new Map();
+        const tours = new Set();
+        const shipCounts = new Map();
+
+        rows.forEach((row) => {
+            totalTips += Number(row.tips) || 0;
+            totalGuests += Number(row.guests) || 0;
+            if (row.tour) {
+                tours.add(row.tour);
+                tourCounts.set(row.tour, (tourCounts.get(row.tour) || 0) + 1);
+            }
+            if (row.ship) {
+                shipCounts.set(row.ship, (shipCounts.get(row.ship) || 0) + 1);
+            }
+        });
+
+        let mostCommonTour = "";
+        let maxTourCount = 0;
+        tourCounts.forEach((count, tour) => {
+            if (count > maxTourCount) {
+                maxTourCount = count;
+                mostCommonTour = tour;
+            }
+        });
+
+        let mostCommonShip = "";
+        let maxShipCount = 0;
+        shipCounts.forEach((count, ship) => {
+            if (count > maxShipCount) {
+                maxShipCount = count;
+                mostCommonShip = ship;
+            }
+        });
+
+        return {
+            totalTips,
+            totalGuests,
+            totalTours: tours.size,
+            mostCommonTour,
+            mostCommonShip
+        };
+    }
+
+    // Renders summary boxes above the chart based on current granularity.
+    function renderSummaryBoxes(rows) {
+        const summaryBoxesContainer = document.getElementById("summaryBoxesContainer");
+        if (!summaryBoxesContainer) {
+            return;
+        }
+
+        summaryBoxesContainer.innerHTML = "";
+
+        const summaries = calculateSummaries(rows);
+
+        // Always show: Total Tips and Total Guests
+        const totalTipsBox = document.createElement("div");
+        totalTipsBox.className = "summaryBox blue";
+        totalTipsBox.innerHTML = `
+            <div class="summaryBoxLabel">Total Tips</div>
+            <div class="summaryBoxValue">$${summaries.totalTips.toFixed(2)}</div>
+        `;
+        summaryBoxesContainer.appendChild(totalTipsBox);
+
+        const totalGuestsBox = document.createElement("div");
+        totalGuestsBox.className = "summaryBox green";
+        totalGuestsBox.innerHTML = `
+            <div class="summaryBoxLabel">Total Guests</div>
+            <div class="summaryBoxValue">${summaries.totalGuests}</div>
+        `;
+        summaryBoxesContainer.appendChild(totalGuestsBox);
+
+        // Show additional boxes when grouping by weeks or months
+        if (currentChartGranularity !== "day") {
+            const totalToursBox = document.createElement("div");
+            totalToursBox.className = "summaryBox purple";
+            totalToursBox.innerHTML = `
+                <div class="summaryBoxLabel">Total Tours</div>
+                <div class="summaryBoxValue">${summaries.totalTours}</div>
+            `;
+            summaryBoxesContainer.appendChild(totalToursBox);
+
+            const mostCommonTourBox = document.createElement("div");
+            mostCommonTourBox.className = "summaryBox orange";
+            mostCommonTourBox.innerHTML = `
+                <div class="summaryBoxLabel">Most Common Tour</div>
+                <div class="summaryBoxValue">${summaries.mostCommonTour || "—"}</div>
+            `;
+            summaryBoxesContainer.appendChild(mostCommonTourBox);
+
+            const mostCommonShipBox = document.createElement("div");
+            mostCommonShipBox.className = "summaryBox red";
+            mostCommonShipBox.innerHTML = `
+                <div class="summaryBoxLabel">Most Common Cruise Ship</div>
+                <div class="summaryBoxValue">${summaries.mostCommonShip || "—"}</div>
+            `;
+            summaryBoxesContainer.appendChild(mostCommonShipBox);
+        }
     }
 
     // Opens the auth dialog so the user can log in or create an account.
@@ -84,6 +458,22 @@ export function initializeTipTrackerApp() {
     // Closes the tip input dialog.
     function closeTipModal() {
         tipModalEl.style.display = "none";
+    }
+
+    // Starts the Google sign-in flow directly.
+    async function startGoogleSignIn() {
+        setAuthStatus("Redirecting to Google...");
+
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: "google",
+            options: {
+                redirectTo: window.location.origin
+            }
+        });
+
+        if (error) {
+            setAuthStatus(`Google login failed: ${error.message}`);
+        }
     }
 
     // Tries to infer a friendly first name from the email local-part.
@@ -131,6 +521,7 @@ export function initializeTipTrackerApp() {
             if (tableControlsEl) tableControlsEl.hidden = false;
             if (statusEl) statusEl.hidden = false;
             if (dataDisplayEl) dataDisplayEl.hidden = false;
+            if (graphSectionEl) graphSectionEl.hidden = false;
             closeAuthModal();
             setAuthStatus("");
             form.querySelectorAll("input, button").forEach((el) => {
@@ -146,6 +537,7 @@ export function initializeTipTrackerApp() {
             if (tableControlsEl) tableControlsEl.hidden = true;
             if (statusEl) statusEl.hidden = true;
             if (dataDisplayEl) dataDisplayEl.hidden = true;
+            if (graphSectionEl) graphSectionEl.hidden = true;
             closeAuthModal();
             form.querySelectorAll("input, button").forEach((el) => {
                 el.disabled = true;
@@ -248,12 +640,16 @@ export function initializeTipTrackerApp() {
 
         updateRemoveModeUi();
         renderTable(getSortedRows(currentRows, currentSortField, currentSortDirection));
+        renderTipsGuestsChart(currentRows);
+        renderSummaryBoxes(currentRows);
     }
 
     // Sends a single inline edit to Supabase after the user changes a cell.
     async function updateTipField(id, field, value) {
         if (!currentUser) {
             setAuthStatus("Log in before editing tips.");
+            renderTipsGuestsChart(currentRows);
+            renderSummaryBoxes(currentRows);
             return { ok: false };
         }
 
@@ -319,6 +715,8 @@ export function initializeTipTrackerApp() {
 
         currentRows = data ?? [];
         renderTable(getSortedRows(currentRows, currentSortField, currentSortDirection));
+        renderTipsGuestsChart(currentRows);
+        renderSummaryBoxes(currentRows);
     }
 
     // Stores the original text when a cell gains focus so edits can be compared later.
@@ -494,16 +892,9 @@ export function initializeTipTrackerApp() {
         await loadTips();
     });
 
-    // Opens the auth modal from the login button in the header.
-    loginBtn.addEventListener("click", () => {
-        setAuthStatus("");
-        openAuthModal();
-    });
-
-    // Opens the auth modal from the sign-up button in the header.
-    signupBtn.addEventListener("click", () => {
-        setAuthStatus("");
-        openAuthModal();
+    // Starts Google sign-in directly from the header button.
+    googleSignInBtn.addEventListener("click", async () => {
+        await startGoogleSignIn();
     });
 
     // Closes the auth dialog without logging the user out.
@@ -547,20 +938,9 @@ export function initializeTipTrackerApp() {
         setAuthStatus("Account created. If email confirmation is enabled, confirm your email before login.");
     });
 
-    // Starts the OAuth flow for Google sign-in.
+    // Starts the OAuth flow for Google sign-in from the modal.
     googleLoginBtn.addEventListener("click", async () => {
-        setAuthStatus("Redirecting to Google...");
-
-        const { error } = await supabase.auth.signInWithOAuth({
-            provider: "google",
-            options: {
-                redirectTo: window.location.origin
-            }
-        });
-
-        if (error) {
-            setAuthStatus(`Google login failed: ${error.message}`);
-        }
+        await startGoogleSignIn();
     });
 
     // Signs the current user out locally and resets the visible state.
@@ -624,7 +1004,6 @@ export function initializeTipTrackerApp() {
         filterBtn.addEventListener("click", (e) => {
             e.stopPropagation();
             filterOptions.classList.toggle("open");
-            orderOptions.classList.remove("open");
         });
     }
 
@@ -632,9 +1011,14 @@ export function initializeTipTrackerApp() {
         orderBtn.addEventListener("click", (e) => {
             e.stopPropagation();
             orderOptions.classList.toggle("open");
-            filterOptions.classList.remove("open");
         });
     }
+
+    chartGranularityButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+            setChartGranularity(button.dataset.granularity || "day");
+        });
+    });
 
     // Close any open dropdown when clicking outside.
     document.addEventListener("click", (event) => {
@@ -662,6 +1046,13 @@ export function initializeTipTrackerApp() {
     }
 
     window.addEventListener("resize", updateRemoveModeUi);
+    window.addEventListener("resize", () => {
+        if (tipsGuestsChart) {
+            tipsGuestsChart.resize();
+        }
+    });
+
+    updateChartGranularityUi();
 
     initializeAuth();
 }

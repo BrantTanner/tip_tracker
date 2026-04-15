@@ -12,8 +12,7 @@
         <h1 id="pageTitle">Tip Tracker</h1>
 
         <div id="loggedOutActions">
-            <button id="login" type="button">Login</button>
-            <button id="signup" type="button">Sign Up</button>
+            <button id="googleSignInBtn" type="button">Sign In</button>
         </div>
 
         <div id="loggedInActions" style="display: none;">
@@ -51,9 +50,20 @@
 
         <p id="loggedOutPrompt" hidden>log in or signup to start tracking!</p>
 
-        <section id="graphSection" aria-label="Graph placeholders">
-            <img class="graphPlaceholder" src="images/graph-placeholder-1.svg" alt="Graph placeholder one">
-            <img class="graphPlaceholder" src="images/graph-placeholder-2.svg" alt="Graph placeholder two">
+        <section id="graphSection" aria-label="Tips and guests line chart" hidden>
+            <div id="summaryBoxesContainer" class="summaryBoxesContainer"></div>
+            <div class="chartCard">
+                <div class="chartToolbar" aria-label="Chart timeframe controls">
+                    <div class="chartSortButtons" role="group" aria-label="Group chart by timeframe">
+                        <button id="chartByDayBtn" class="chartSortBtn active" type="button" data-granularity="day" aria-pressed="true">Days</button>
+                        <button id="chartByWeekBtn" class="chartSortBtn" type="button" data-granularity="week" aria-pressed="false">Weeks</button>
+                        <button id="chartByMonthBtn" class="chartSortBtn" type="button" data-granularity="month" aria-pressed="false">Months</button>
+                    </div>
+                </div>
+                <div class="chartCanvasWrap">
+                    <canvas id="tipsGuestsChart"></canvas>
+                </div>
+            </div>
         </section>
 
         <div id="tableControls" class="tableControls">
@@ -100,6 +110,7 @@
         <div id="dataDisplay"></div>
     </section>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script type="module" src="main.js"></script>
 </body>
 </html>
