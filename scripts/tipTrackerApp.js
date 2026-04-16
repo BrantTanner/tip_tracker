@@ -384,6 +384,73 @@ export function initializeTipTrackerApp() {
         };
     }
 
+    function createSummaryNavButton(direction) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `summaryNavButton ${direction < 0 ? "summaryNavPrev" : "summaryNavNext"}`;
+        button.dataset.direction = String(direction);
+        button.setAttribute("aria-label", direction < 0 ? "Show previous summary" : "Show next summary");
+        button.innerText = direction < 0 ? "\u2039" : "\u203a";
+        return button;
+    }
+
+    function moveSummarySlide(summaryBoxesContainer, direction) {
+        const summaryBoxes = Array.from(summaryBoxesContainer.querySelectorAll(".summaryBox"));
+        if (summaryBoxes.length < 2 || direction === 0) {
+            return;
+        }
+
+        const firstBoxWidth = summaryBoxes[0].getBoundingClientRect().width;
+        if (!firstBoxWidth) {
+            return;
+        }
+
+        const currentIndex = Math.round(summaryBoxesContainer.scrollLeft / firstBoxWidth);
+        let nextIndex = currentIndex + direction;
+
+        if (nextIndex < 0) {
+            nextIndex = summaryBoxes.length - 1;
+        }
+
+        if (nextIndex >= summaryBoxes.length) {
+            nextIndex = 0;
+        }
+
+        summaryBoxesContainer.scrollTo({
+            left: nextIndex * firstBoxWidth,
+            behavior: "smooth"
+        });
+    }
+
+    function addSummaryBoxNavigation(summaryBoxesContainer) {
+        const summaryBoxes = Array.from(summaryBoxesContainer.querySelectorAll(".summaryBox"));
+        if (!summaryBoxes.length) {
+            return;
+        }
+
+        summaryBoxes.forEach((summaryBox) => {
+            const navWrap = document.createElement("div");
+            navWrap.className = "summaryBoxNav";
+            navWrap.appendChild(createSummaryNavButton(-1));
+            navWrap.appendChild(createSummaryNavButton(1));
+            summaryBox.appendChild(navWrap);
+        });
+
+        summaryBoxesContainer.onclick = (event) => {
+            if (!(event.target instanceof Element)) {
+                return;
+            }
+
+            const navButton = event.target.closest(".summaryNavButton");
+            if (!navButton || !summaryBoxesContainer.contains(navButton)) {
+                return;
+            }
+
+            const direction = Number(navButton.dataset.direction);
+            moveSummarySlide(summaryBoxesContainer, Number.isNaN(direction) ? 0 : direction);
+        };
+    }
+
     // Renders summary boxes above the chart based on current granularity.
     function renderSummaryBoxes(rows) {
         const summaryBoxesContainer = document.getElementById("summaryBoxesContainer");
@@ -438,6 +505,8 @@ export function initializeTipTrackerApp() {
             `;
             summaryBoxesContainer.appendChild(mostCommonShipBox);
         }
+
+        addSummaryBoxNavigation(summaryBoxesContainer);
     }
 
     // Opens the auth dialog so the user can log in or create an account.

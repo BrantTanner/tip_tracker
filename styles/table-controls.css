@@ -1,0 +1,230 @@
+.tableControls {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin: 16px 0 10px;
+	margin-left: 15px;
+	margin-right: 15px;
+	flex-wrap: wrap;
+	justify-content: space-between;
+}
+
+.addTipBtn {
+	background: #1e66d0;
+	color: #fff;
+	border: 1px solid #1957b0;
+	border-radius: 8px;
+	padding: 8px 12px;
+	cursor: pointer;
+	font-size: 14px;
+	font-weight: 600;
+	transition: background-color 200ms ease;
+}
+
+.addTipBtn:hover {
+	background: #1754ad;
+}
+
+.removeTipsBtn {
+	color: #000000;
+	background: #f5f5f5;
+	border: 1px solid #c8ced8;
+	border-radius: 8px;
+	padding: 8px 12px;
+	cursor: pointer;
+	font-size: 14px;
+	font-weight: 600;
+	transition: background-color 200ms ease;
+}
+
+.removeTipsBtn:hover {
+	background: #a82222;
+}
+
+.removeTipsBtn.active {
+	background: #7f1d1d;
+	border-color: #6f1818;
+}
+
+.tableControls label {
+	font-weight: 600;
+}
+
+.tableControls select {
+	min-width: 180px;
+	padding: 8px 10px;
+	border: 1px solid #c8ced8;
+	border-radius: 8px;
+	background: #fff;
+	font: inherit;
+}
+
+.controlGroup {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: nowrap;
+	position: relative;
+}
+
+.filterOptions {
+	margin-right: 10px;
+	display: none;
+	align-items: center;
+	gap: 10px;
+}
+
+.filterBtn {
+	display: flex;
+	background: #f5f5f5;
+	border: 1px solid #c8ced8;
+	border-radius: 8px;
+	padding: 8px 12px;
+	cursor: pointer;
+	font-size: 14px;
+	font-weight: 600;
+	align-items: center;
+	gap: 6px;
+	transition: background-color 200ms ease;
+}
+
+.filterBtn:hover {
+	background: #e8e8e8;
+}
+
+.filterIcon {
+	width: 18px;
+	height: 18px;
+}
+
+.orderBtn {
+	display: flex;
+	background: #f5f5f5;
+	border: 1px solid #c8ced8;
+	border-radius: 8px;
+	padding: 8px 12px;
+	cursor: pointer;
+	font-size: 14px;
+	font-weight: 600;
+	align-items: center;
+	gap: 6px;
+	transition: background-color 200ms ease;
+}
+
+.orderBtn:hover {
+	background: #e8e8e8;
+}
+
+.orderIcon {
+	width: 18px;
+	height: 18px;
+}
+
+.filterOptions.open {
+	display: flex;
+}
+
+.filterOptions select {
+	min-width: 180px;
+	padding: 8px 10px;
+	border: 1px solid #c8ced8;
+	border-radius: 8px;
+	background: #fff;
+	font: inherit;
+}
+
+.orderOptions {
+	display: none;
+	align-items: center;
+	gap: 10px;
+}
+
+.orderOptions.open {
+	display: flex;
+}
+
+.orderOptions select {
+	min-width: 180px;
+	padding: 8px 10px;
+	border: 1px solid #c8ced8;
+	border-radius: 8px;
+	background: #fff;
+	font: inherit;
+}
+
+@media (max-width: 699px) {
+	.tableControls {
+		gap: 8px;
+		justify-content: space-between;
+	}
+
+	.controlGroup {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex-wrap: nowrap;
+		position: relative;
+	}
+
+	.filterBtn {
+		display: flex;
+	}
+
+	.orderBtn {
+		display: flex;
+	}
+
+	.filterOptions {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		background: #fff;
+		border: 1px solid #c8ced8;
+		border-radius: 8px;
+		padding: 8px;
+		margin-top: 4px;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+		display: none;
+		flex-direction: column;
+		z-index: 100;
+		width: 180px;
+	}
+
+	.filterOptions.open {
+		display: flex;
+	}
+
+	.filterOptions select {
+		width: 100%;
+		min-width: unset;
+		padding: 6px 8px;
+		font-size: 14px;
+	}
+
+	.orderOptions {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		background: #fff;
+		border: 1px solid #c8ced8;
+		border-radius: 8px;
+		padding: 8px;
+		margin-top: 4px;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+		display: none;
+		flex-direction: column;
+		z-index: 100;
+		width: 180px;
+	}
+
+	.orderOptions.open {
+		display: flex;
+	}
+
+	.orderOptions select {
+		width: 100%;
+		min-width: unset;
+		padding: 6px 8px;
+		font-size: 14px;
+	}
+}

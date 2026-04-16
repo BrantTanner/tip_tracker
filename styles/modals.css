@@ -1,0 +1,68 @@
+#authModal {
+	position: fixed;
+	inset: 0;
+	z-index: 1000;
+	display: none;
+	align-items: center;
+	justify-content: center;
+	background: rgba(0, 0, 0, 0.35);
+	backdrop-filter: blur(6px);
+	-webkit-backdrop-filter: blur(6px);
+}
+
+#authModal .modalCard {
+	width: min(92vw, 420px);
+	background: #ffffff;
+	border-radius: 12px;
+	padding: 20px;
+	box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+	display: grid;
+	gap: 10px;
+}
+
+#authModal label {
+	display: grid;
+	gap: 6px;
+}
+
+#authModal input {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+#tipModal {
+	position: fixed;
+	inset: 0;
+	z-index: 1000;
+	display: none;
+	align-items: center;
+	justify-content: center;
+	background: rgba(0, 0, 0, 0.35);
+	backdrop-filter: blur(6px);
+	-webkit-backdrop-filter: blur(6px);
+}
+
+#tipModal .modalCard {
+	width: min(92vw, 420px);
+	background: #ffffff;
+	border-radius: 12px;
+	padding: 20px;
+	box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+	display: grid;
+	gap: 10px;
+}
+
+#tipForm {
+	display: grid;
+	gap: 10px;
+}
+
+#tipForm label {
+	display: grid;
+	gap: 6px;
+}
+
+#tipForm input {
+	width: 100%;
+	box-sizing: border-box;
+}
