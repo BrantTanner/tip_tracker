@@ -74,12 +74,15 @@
 	flex-wrap: nowrap;
 	flex-shrink: 0;
 	margin-bottom: 16px;
-	justify-content: flex-start;
+	justify-content: center;
+	overflow-x: hidden;
+	overflow-y: hidden;
+	width: 100%;
 }
 
 .summaryBox {
-	flex: 0 1 auto;
-	min-width: 100px;
+	flex: 0 0 70%;
+	min-width: 0;
 	padding: 8px;
 	position: relative;
 	border-radius: 8px;
@@ -172,8 +175,7 @@
 	.summaryBox {
 		min-width: 0;
 		padding: 12px 40px;
-		flex: 0 0 86%;
-		margin: 0 7%;
+		flex: 0 0 70%;
 		scroll-snap-align: start;
 		scroll-snap-stop: always;
 	}
