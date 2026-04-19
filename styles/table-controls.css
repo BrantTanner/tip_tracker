@@ -12,7 +12,7 @@
 .actionGroup {
 	display: flex;
 	align-items: center;
-	gap: 8px;
+	gap: 6px;
 	flex-wrap: nowrap;
 }
 
@@ -169,7 +169,7 @@
 @media (max-width: 699px) {
 	.tableControls {
 		flex-wrap: nowrap;
-		gap: 8px;
+		gap: 10px;
 		justify-content: space-between;
 	}
 
@@ -180,7 +180,7 @@
 	.controlGroup {
 		display: flex;
 		align-items: center;
-		gap: 8px;
+		gap: 6px;
 		flex-wrap: nowrap;
 		position: relative;
 		margin-left: auto;
