@@ -9,6 +9,13 @@
 	justify-content: space-between;
 }
 
+.actionGroup {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: nowrap;
+}
+
 .addTipBtn {
 	background: #1e66d0;
 	color: #fff;
@@ -111,6 +118,13 @@
 	transition: background-color 200ms ease;
 }
 
+.addTipBtn,
+.removeTipsBtn,
+.filterBtn,
+.orderBtn {
+	white-space: nowrap;
+}
+
 .orderBtn:hover {
 	background: #e8e8e8;
 }
@@ -154,8 +168,13 @@
 
 @media (max-width: 699px) {
 	.tableControls {
+		flex-wrap: nowrap;
 		gap: 8px;
 		justify-content: space-between;
+	}
+
+	.actionGroup {
+		margin-right: auto;
 	}
 
 	.controlGroup {
@@ -164,6 +183,7 @@
 		gap: 8px;
 		flex-wrap: nowrap;
 		position: relative;
+		margin-left: auto;
 	}
 
 	.filterBtn {
