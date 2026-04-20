@@ -341,13 +341,27 @@ export function initializeTipTrackerApp() {
     function calculateSummaries(rows) {
         let totalTips = 0;
         let totalGuests = 0;
+        let highestDailyTips = 0;
+        let highestDailyGuests = 0;
         const tourCounts = new Map();
         const tours = new Set();
         const shipCounts = new Map();
+        const dailyTotals = new Map();
 
         rows.forEach((row) => {
-            totalTips += Number(row.tips) || 0;
-            totalGuests += Number(row.guests) || 0;
+            const tips = Number(row.tips) || 0;
+            const guests = Number(row.guests) || 0;
+
+            totalTips += tips;
+            totalGuests += guests;
+
+            const rawCreatedAt = typeof row.created_at === "string" ? row.created_at : "";
+            const dayKey = rawCreatedAt.length >= 10 ? rawCreatedAt.slice(0, 10) : "Unknown";
+            const existingDayTotals = dailyTotals.get(dayKey) ?? { tips: 0, guests: 0 };
+            existingDayTotals.tips += tips;
+            existingDayTotals.guests += guests;
+            dailyTotals.set(dayKey, existingDayTotals);
+
             if (row.tour) {
                 tours.add(row.tour);
                 tourCounts.set(row.tour, (tourCounts.get(row.tour) || 0) + 1);
@@ -375,13 +389,56 @@ export function initializeTipTrackerApp() {
             }
         });
 
+        dailyTotals.forEach((totals) => {
+            if (totals.tips > highestDailyTips) {
+                highestDailyTips = totals.tips;
+            }
+
+            if (totals.guests > highestDailyGuests) {
+                highestDailyGuests = totals.guests;
+            }
+        });
+
+        const rowCount = rows.length;
+        const averageTips = rowCount > 0 ? totalTips / rowCount : 0;
+        const averageGuests = rowCount > 0 ? totalGuests / rowCount : 0;
+
         return {
             totalTips,
             totalGuests,
             totalTours: tours.size,
             mostCommonTour,
-            mostCommonShip
+            mostCommonShip,
+            highestDailyTips,
+            highestDailyGuests,
+            averageTips,
+            averageGuests
         };
+    }
+
+    function createSummaryBox({ label, value, colorClass }) {
+        const summaryBox = document.createElement("div");
+        summaryBox.className = `summaryBox ${colorClass}`;
+        summaryBox.innerHTML = `
+            <div class="summaryBoxLabel">${label}</div>
+            <div class="summaryBoxValue">${value}</div>
+        `;
+        return summaryBox;
+    }
+
+    function renderSummaryRow(containerId, summaryItems) {
+        const summaryContainer = document.getElementById(containerId);
+        if (!summaryContainer) {
+            return;
+        }
+
+        summaryContainer.innerHTML = "";
+
+        summaryItems.forEach((item) => {
+            summaryContainer.appendChild(createSummaryBox(item));
+        });
+
+        addSummaryBoxNavigation(summaryContainer);
     }
 
     function createSummaryNavButton(direction) {
@@ -454,59 +511,75 @@ export function initializeTipTrackerApp() {
     // Renders summary boxes above the chart based on current granularity.
     function renderSummaryBoxes(rows) {
         const summaryBoxesContainer = document.getElementById("summaryBoxesContainer");
-        if (!summaryBoxesContainer) {
+        const highestSummaryBoxesContainer = document.getElementById("highestSummaryBoxesContainer");
+        const averageSummaryBoxesContainer = document.getElementById("averageSummaryBoxesContainer");
+        if (!summaryBoxesContainer && !highestSummaryBoxesContainer && !averageSummaryBoxesContainer) {
             return;
         }
 
-        summaryBoxesContainer.innerHTML = "";
-
         const summaries = calculateSummaries(rows);
 
-        // Always show: Total Tips and Total Guests
-        const totalTipsBox = document.createElement("div");
-        totalTipsBox.className = "summaryBox blue";
-        totalTipsBox.innerHTML = `
-            <div class="summaryBoxLabel">Total Tips</div>
-            <div class="summaryBoxValue">$${summaries.totalTips.toFixed(2)}</div>
-        `;
-        summaryBoxesContainer.appendChild(totalTipsBox);
-
-        const totalGuestsBox = document.createElement("div");
-        totalGuestsBox.className = "summaryBox green";
-        totalGuestsBox.innerHTML = `
-            <div class="summaryBoxLabel">Total Guests</div>
-            <div class="summaryBoxValue">${summaries.totalGuests}</div>
-        `;
-        summaryBoxesContainer.appendChild(totalGuestsBox);
+        const primarySummaryItems = [
+            {
+                label: "Total Tips",
+                value: `$${summaries.totalTips.toFixed(2)}`,
+                colorClass: "blue"
+            },
+            {
+                label: "Total Guests",
+                value: `${summaries.totalGuests}`,
+                colorClass: "green"
+            }
+        ];
 
         // Show additional boxes when grouping by weeks or months
         if (currentChartGranularity !== "day") {
-            const totalToursBox = document.createElement("div");
-            totalToursBox.className = "summaryBox purple";
-            totalToursBox.innerHTML = `
-                <div class="summaryBoxLabel">Total Tours</div>
-                <div class="summaryBoxValue">${summaries.totalTours}</div>
-            `;
-            summaryBoxesContainer.appendChild(totalToursBox);
-
-            const mostCommonTourBox = document.createElement("div");
-            mostCommonTourBox.className = "summaryBox orange";
-            mostCommonTourBox.innerHTML = `
-                <div class="summaryBoxLabel">Most Common Tour</div>
-                <div class="summaryBoxValue">${summaries.mostCommonTour || "—"}</div>
-            `;
-            summaryBoxesContainer.appendChild(mostCommonTourBox);
-
-            const mostCommonShipBox = document.createElement("div");
-            mostCommonShipBox.className = "summaryBox red";
-            mostCommonShipBox.innerHTML = `
-                <div class="summaryBoxLabel">Most Common Cruise Ship</div>
-                <div class="summaryBoxValue">${summaries.mostCommonShip || "—"}</div>
-            `;
-            summaryBoxesContainer.appendChild(mostCommonShipBox);
+            primarySummaryItems.push(
+                {
+                    label: "Total Tours",
+                    value: `${summaries.totalTours}`,
+                    colorClass: "purple"
+                },
+                {
+                    label: "Most Common Tour",
+                    value: summaries.mostCommonTour || "—",
+                    colorClass: "orange"
+                },
+                {
+                    label: "Most Common Cruise Ship",
+                    value: summaries.mostCommonShip || "—",
+                    colorClass: "red"
+                }
+            );
         }
 
-        addSummaryBoxNavigation(summaryBoxesContainer);
+        renderSummaryRow("summaryBoxesContainer", primarySummaryItems);
+
+        renderSummaryRow("highestSummaryBoxesContainer", [
+            {
+                label: "Highest Tip Count (In One Day)",
+                value: `$${summaries.highestDailyTips.toFixed(2)}`,
+                colorClass: "blue"
+            },
+            {
+                label: "Highest Guest Count (In One Day)",
+                value: `${summaries.highestDailyGuests}`,
+                colorClass: "green"
+            }
+        ]);
+
+        renderSummaryRow("averageSummaryBoxesContainer", [
+            {
+                label: "Average Amount of Tips",
+                value: `$${summaries.averageTips.toFixed(2)}`,
+                colorClass: "blue"
+            },
+            {
+                label: "Average Amount of Guests",
+                value: `${summaries.averageGuests.toFixed(2)}`,
+                colorClass: "green"
+            }
+        ]);
     }
 
     // Opens the auth dialog so the user can log in or create an account.
