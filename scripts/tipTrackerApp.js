@@ -338,15 +338,14 @@ export function initializeTipTrackerApp() {
     }
 
     // Calculates summary statistics from the current rows.
-    function calculateSummaries(rows) {
+    function calculateSummaries(rows, granularity = "day") {
         let totalTips = 0;
         let totalGuests = 0;
-        let highestDailyTips = 0;
-        let highestDailyGuests = 0;
+        let highestPeriodTips = 0;
+        let highestPeriodGuests = 0;
         const tourCounts = new Map();
         const tours = new Set();
         const shipCounts = new Map();
-        const dailyTotals = new Map();
 
         rows.forEach((row) => {
             const tips = Number(row.tips) || 0;
@@ -354,13 +353,6 @@ export function initializeTipTrackerApp() {
 
             totalTips += tips;
             totalGuests += guests;
-
-            const rawCreatedAt = typeof row.created_at === "string" ? row.created_at : "";
-            const dayKey = rawCreatedAt.length >= 10 ? rawCreatedAt.slice(0, 10) : "Unknown";
-            const existingDayTotals = dailyTotals.get(dayKey) ?? { tips: 0, guests: 0 };
-            existingDayTotals.tips += tips;
-            existingDayTotals.guests += guests;
-            dailyTotals.set(dayKey, existingDayTotals);
 
             if (row.tour) {
                 tours.add(row.tour);
@@ -389,19 +381,17 @@ export function initializeTipTrackerApp() {
             }
         });
 
-        dailyTotals.forEach((totals) => {
-            if (totals.tips > highestDailyTips) {
-                highestDailyTips = totals.tips;
-            }
+        const groupedChartData = buildTipsGuestsChartData(rows, granularity);
+        highestPeriodTips = groupedChartData.tipsData.reduce((maxValue, value) => {
+            return Math.max(maxValue, Number(value) || 0);
+        }, 0);
+        highestPeriodGuests = groupedChartData.guestsData.reduce((maxValue, value) => {
+            return Math.max(maxValue, Number(value) || 0);
+        }, 0);
 
-            if (totals.guests > highestDailyGuests) {
-                highestDailyGuests = totals.guests;
-            }
-        });
-
-        const rowCount = rows.length;
-        const averageTips = rowCount > 0 ? totalTips / rowCount : 0;
-        const averageGuests = rowCount > 0 ? totalGuests / rowCount : 0;
+        const periodCount = groupedChartData.labels.length;
+        const averageTips = periodCount > 0 ? totalTips / periodCount : 0;
+        const averageGuests = periodCount > 0 ? totalGuests / periodCount : 0;
 
         return {
             totalTips,
@@ -409,8 +399,8 @@ export function initializeTipTrackerApp() {
             totalTours: tours.size,
             mostCommonTour,
             mostCommonShip,
-            highestDailyTips,
-            highestDailyGuests,
+            highestPeriodTips,
+            highestPeriodGuests,
             averageTips,
             averageGuests
         };
@@ -434,9 +424,17 @@ export function initializeTipTrackerApp() {
 
         summaryContainer.innerHTML = "";
 
-        summaryItems.forEach((item) => {
-            summaryContainer.appendChild(createSummaryBox(item));
+        const summarySlidesTrack = document.createElement("div");
+        summarySlidesTrack.className = "summarySlidesTrack";
+
+        summaryItems.forEach((item, index) => {
+            const summaryBox = createSummaryBox(item);
+            summaryBox.setAttribute("role", "group");
+            summaryBox.setAttribute("aria-label", `Summary ${index + 1} of ${summaryItems.length}`);
+            summarySlidesTrack.appendChild(summaryBox);
         });
+
+        summaryContainer.appendChild(summarySlidesTrack);
 
         addSummaryBoxNavigation(summaryContainer);
     }
@@ -453,17 +451,16 @@ export function initializeTipTrackerApp() {
 
     function moveSummarySlide(summaryBoxesContainer, direction) {
         const summaryBoxes = Array.from(summaryBoxesContainer.querySelectorAll(".summaryBox"));
-        if (summaryBoxes.length < 2 || direction === 0) {
+        if (!summaryBoxes.length) {
             return;
         }
 
-        const firstBoxWidth = summaryBoxes[0].getBoundingClientRect().width;
-        if (!firstBoxWidth) {
+        const currentIndex = Number(summaryBoxesContainer.dataset.currentSlideIndex || "0");
+        if (Number.isNaN(currentIndex)) {
             return;
         }
 
-        const currentIndex = Math.round(summaryBoxesContainer.scrollLeft / firstBoxWidth);
-        let nextIndex = currentIndex + direction;
+        let nextIndex = currentIndex + (Number(direction) || 0);
 
         if (nextIndex < 0) {
             nextIndex = summaryBoxes.length - 1;
@@ -473,9 +470,23 @@ export function initializeTipTrackerApp() {
             nextIndex = 0;
         }
 
-        summaryBoxesContainer.scrollTo({
-            left: nextIndex * firstBoxWidth,
-            behavior: "smooth"
+        const summarySlidesTrack = summaryBoxesContainer.querySelector(".summarySlidesTrack");
+        if (!summarySlidesTrack) {
+            return;
+        }
+
+        summaryBoxesContainer.dataset.currentSlideIndex = String(nextIndex);
+        summarySlidesTrack.style.transform = `translateX(-${nextIndex * 100}%)`;
+
+        summaryBoxes.forEach((summaryBox, index) => {
+            summaryBox.setAttribute("aria-hidden", String(index !== nextIndex));
+        });
+
+        const dots = Array.from(summaryBoxesContainer.querySelectorAll(".summaryDot"));
+        dots.forEach((dot, index) => {
+            const isActive = index === nextIndex;
+            dot.classList.toggle("active", isActive);
+            dot.setAttribute("aria-pressed", String(isActive));
         });
     }
 
@@ -485,26 +496,195 @@ export function initializeTipTrackerApp() {
             return;
         }
 
-        summaryBoxes.forEach((summaryBox) => {
-            const navWrap = document.createElement("div");
-            navWrap.className = "summaryBoxNav";
-            navWrap.appendChild(createSummaryNavButton(-1));
-            navWrap.appendChild(createSummaryNavButton(1));
-            summaryBox.appendChild(navWrap);
+        summaryBoxesContainer.dataset.currentSlideIndex = "0";
+        moveSummarySlide(summaryBoxesContainer, 0);
+
+        if (summaryBoxes.length < 2) {
+            return;
+        }
+
+        const controlsWrap = document.createElement("div");
+        controlsWrap.className = "summarySlideshowControls";
+        controlsWrap.appendChild(createSummaryNavButton(-1));
+
+        const dotsWrap = document.createElement("div");
+        dotsWrap.className = "summaryDots";
+
+        summaryBoxes.forEach((_, index) => {
+            const dot = document.createElement("button");
+            dot.type = "button";
+            dot.className = `summaryDot ${index === 0 ? "active" : ""}`;
+            dot.dataset.slideIndex = String(index);
+            dot.setAttribute("aria-label", `Show summary ${index + 1}`);
+            dot.setAttribute("aria-pressed", String(index === 0));
+            dotsWrap.appendChild(dot);
         });
 
+        controlsWrap.appendChild(dotsWrap);
+        controlsWrap.appendChild(createSummaryNavButton(1));
+        summaryBoxesContainer.appendChild(controlsWrap);
+
+        const swipeState = {
+            startX: 0,
+            startY: 0,
+            isSwiping: false
+        };
+        const dragState = {
+            startX: 0,
+            startY: 0,
+            isDragging: false,
+            moved: false,
+            suppressClick: false
+        };
+        const minSwipeDistance = 35;
+
         summaryBoxesContainer.onclick = (event) => {
+            if (dragState.suppressClick) {
+                dragState.suppressClick = false;
+                event.preventDefault();
+                return;
+            }
+
             if (!(event.target instanceof Element)) {
                 return;
             }
 
             const navButton = event.target.closest(".summaryNavButton");
-            if (!navButton || !summaryBoxesContainer.contains(navButton)) {
+            if (navButton && summaryBoxesContainer.contains(navButton)) {
+                const direction = Number(navButton.dataset.direction);
+                moveSummarySlide(summaryBoxesContainer, Number.isNaN(direction) ? 0 : direction);
                 return;
             }
 
-            const direction = Number(navButton.dataset.direction);
-            moveSummarySlide(summaryBoxesContainer, Number.isNaN(direction) ? 0 : direction);
+            const dot = event.target.closest(".summaryDot");
+            if (!dot || !summaryBoxesContainer.contains(dot)) {
+                return;
+            }
+
+            const selectedIndex = Number(dot.dataset.slideIndex);
+            const currentIndex = Number(summaryBoxesContainer.dataset.currentSlideIndex || "0");
+            if (Number.isNaN(selectedIndex) || Number.isNaN(currentIndex)) {
+                return;
+            }
+
+            moveSummarySlide(summaryBoxesContainer, selectedIndex - currentIndex);
+        };
+
+        summaryBoxesContainer.ontouchstart = (event) => {
+            const touch = event.touches?.[0];
+            if (!touch) {
+                return;
+            }
+
+            swipeState.startX = touch.clientX;
+            swipeState.startY = touch.clientY;
+            swipeState.isSwiping = true;
+        };
+
+        summaryBoxesContainer.ontouchmove = (event) => {
+            if (!swipeState.isSwiping) {
+                return;
+            }
+
+            const touch = event.touches?.[0];
+            if (!touch) {
+                return;
+            }
+
+            const deltaX = touch.clientX - swipeState.startX;
+            const deltaY = touch.clientY - swipeState.startY;
+
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                event.preventDefault();
+            }
+        };
+
+        summaryBoxesContainer.ontouchend = (event) => {
+            if (!swipeState.isSwiping) {
+                return;
+            }
+
+            const touch = event.changedTouches?.[0];
+            if (!touch) {
+                swipeState.isSwiping = false;
+                return;
+            }
+
+            const deltaX = touch.clientX - swipeState.startX;
+            const deltaY = touch.clientY - swipeState.startY;
+            swipeState.isSwiping = false;
+
+            if (Math.abs(deltaX) < minSwipeDistance || Math.abs(deltaX) <= Math.abs(deltaY)) {
+                return;
+            }
+
+            moveSummarySlide(summaryBoxesContainer, deltaX < 0 ? 1 : -1);
+        };
+
+        summaryBoxesContainer.ontouchcancel = () => {
+            swipeState.isSwiping = false;
+        };
+
+        summaryBoxesContainer.onmousedown = (event) => {
+            if (event.button !== 0) {
+                return;
+            }
+
+            if (event.target instanceof Element && event.target.closest(".summaryNavButton, .summaryDot")) {
+                return;
+            }
+
+            dragState.startX = event.clientX;
+            dragState.startY = event.clientY;
+            dragState.isDragging = true;
+            dragState.moved = false;
+            summaryBoxesContainer.classList.add("dragging");
+        };
+
+        summaryBoxesContainer.onmousemove = (event) => {
+            if (!dragState.isDragging) {
+                return;
+            }
+
+            const deltaX = event.clientX - dragState.startX;
+            const deltaY = event.clientY - dragState.startY;
+
+            if (Math.abs(deltaX) > 6 || Math.abs(deltaY) > 6) {
+                dragState.moved = true;
+            }
+
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                event.preventDefault();
+            }
+        };
+
+        function finishMouseDrag(clientX, clientY) {
+            if (!dragState.isDragging) {
+                return;
+            }
+
+            const deltaX = clientX - dragState.startX;
+            const deltaY = clientY - dragState.startY;
+            const shouldSlide = Math.abs(deltaX) >= minSwipeDistance && Math.abs(deltaX) > Math.abs(deltaY);
+
+            dragState.isDragging = false;
+            summaryBoxesContainer.classList.remove("dragging");
+
+            if (shouldSlide) {
+                dragState.suppressClick = true;
+                moveSummarySlide(summaryBoxesContainer, deltaX < 0 ? 1 : -1);
+                return;
+            }
+
+            dragState.suppressClick = dragState.moved;
+        }
+
+        summaryBoxesContainer.onmouseup = (event) => {
+            finishMouseDrag(event.clientX, event.clientY);
+        };
+
+        summaryBoxesContainer.onmouseleave = (event) => {
+            finishMouseDrag(event.clientX, event.clientY);
         };
     }
 
@@ -513,11 +693,18 @@ export function initializeTipTrackerApp() {
         const summaryBoxesContainer = document.getElementById("summaryBoxesContainer");
         const highestSummaryBoxesContainer = document.getElementById("highestSummaryBoxesContainer");
         const averageSummaryBoxesContainer = document.getElementById("averageSummaryBoxesContainer");
-        if (!summaryBoxesContainer && !highestSummaryBoxesContainer && !averageSummaryBoxesContainer) {
+        const tourShipSummaryBoxesContainer = document.getElementById("tourShipSummaryBoxesContainer");
+        const tourShipSummaryGroup = document.getElementById("tourShipSummaryGroup");
+        if (!summaryBoxesContainer && !highestSummaryBoxesContainer && !averageSummaryBoxesContainer && !tourShipSummaryBoxesContainer) {
             return;
         }
 
-        const summaries = calculateSummaries(rows);
+        const summaries = calculateSummaries(rows, currentChartGranularity);
+        const periodLabel = currentChartGranularity === "month"
+            ? "Month"
+            : currentChartGranularity === "week"
+                ? "Week"
+                : "Day";
 
         const primarySummaryItems = [
             {
@@ -532,9 +719,41 @@ export function initializeTipTrackerApp() {
             }
         ];
 
-        // Show additional boxes when grouping by weeks or months
-        if (currentChartGranularity !== "day") {
-            primarySummaryItems.push(
+        renderSummaryRow("summaryBoxesContainer", primarySummaryItems);
+
+        renderSummaryRow("highestSummaryBoxesContainer", [
+            {
+                label: `Highest Tip Count (In One ${periodLabel})`,
+                value: `$${summaries.highestPeriodTips.toFixed(2)}`,
+                colorClass: "blue"
+            },
+            {
+                label: `Highest Guest Count (In One ${periodLabel})`,
+                value: `${summaries.highestPeriodGuests}`,
+                colorClass: "green"
+            }
+        ]);
+
+        renderSummaryRow("averageSummaryBoxesContainer", [
+            {
+                label: `Average Amount of Tips (Per ${periodLabel})`,
+                value: `$${summaries.averageTips.toFixed(2)}`,
+                colorClass: "blue"
+            },
+            {
+                label: `Average Amount of Guests (Per ${periodLabel})`,
+                value: `${summaries.averageGuests.toFixed(2)}`,
+                colorClass: "green"
+            }
+        ]);
+
+        const showTourShipStats = currentChartGranularity !== "day";
+        if (tourShipSummaryGroup) {
+            tourShipSummaryGroup.hidden = !showTourShipStats;
+        }
+
+        renderSummaryRow("tourShipSummaryBoxesContainer", showTourShipStats
+            ? [
                 {
                     label: "Total Tours",
                     value: `${summaries.totalTours}`,
@@ -550,36 +769,8 @@ export function initializeTipTrackerApp() {
                     value: summaries.mostCommonShip || "—",
                     colorClass: "red"
                 }
-            );
-        }
-
-        renderSummaryRow("summaryBoxesContainer", primarySummaryItems);
-
-        renderSummaryRow("highestSummaryBoxesContainer", [
-            {
-                label: "Highest Tip Count (In One Day)",
-                value: `$${summaries.highestDailyTips.toFixed(2)}`,
-                colorClass: "blue"
-            },
-            {
-                label: "Highest Guest Count (In One Day)",
-                value: `${summaries.highestDailyGuests}`,
-                colorClass: "green"
-            }
-        ]);
-
-        renderSummaryRow("averageSummaryBoxesContainer", [
-            {
-                label: "Average Amount of Tips",
-                value: `$${summaries.averageTips.toFixed(2)}`,
-                colorClass: "blue"
-            },
-            {
-                label: "Average Amount of Guests",
-                value: `${summaries.averageGuests.toFixed(2)}`,
-                colorClass: "green"
-            }
-        ]);
+            ]
+            : []);
     }
 
     // Opens the auth dialog so the user can log in or create an account.

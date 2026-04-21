@@ -69,14 +69,24 @@
 }
 
 .summaryBoxesContainer {
-	display: flex;
-	gap: 12px;
-	flex-wrap: nowrap;
-	flex-shrink: 0;
-	justify-content: center;
-	overflow-x: hidden;
+	position: relative;
+	overflow: hidden;
 	overflow-y: hidden;
 	width: 100%;
+	touch-action: pan-y;
+	cursor: grab;
+}
+
+.summaryBoxesContainer.dragging {
+	cursor: grabbing;
+	user-select: none;
+}
+
+.summarySlidesTrack {
+	display: flex;
+	width: 100%;
+	transition: transform 220ms ease;
+	will-change: transform;
 }
 
 .summaryGroup {
@@ -93,9 +103,10 @@
 }
 
 .summaryBox {
-	flex: 0 0 70%;
+	flex: 0 0 100%;
 	min-width: 0;
-	padding: 8px;
+	box-sizing: border-box;
+	padding: 8px 44px 24px;
 	position: relative;
 	border-radius: 8px;
 	background: #fff;
@@ -133,6 +144,8 @@
 	font-weight: 600;
 	text-transform: uppercase;
 	letter-spacing: 0.5px;
+	line-height: 1.1;
+	min-height: 2.2em;
 }
 
 .summaryBoxValue {
@@ -144,6 +157,65 @@
 
 .summaryBoxNav {
 	display: none;
+}
+
+.summarySlideshowControls {
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 0;
+	bottom: 0;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 8px;
+	pointer-events: none;
+}
+
+.summaryDots {
+	position: absolute;
+	left: 50%;
+	bottom: 10px;
+	display: flex;
+	gap: 6px;
+	transform: translateX(-50%);
+	pointer-events: auto;
+}
+
+.summaryDot {
+	height: 10px;
+	width: 10px;
+	border-radius: 999px;
+	border: 1px solid #b6c0cd;
+	background: #ffffff;
+	padding: 0;
+	cursor: pointer;
+}
+
+.summaryDot.active {
+	background: #1e66d0;
+	border-color: #1e66d0;
+}
+
+.summaryNavButton {
+	height: 28px;
+	width: 28px;
+	border: 1px solid #c8ced8;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.92);
+	color: #1e293b;
+	font-size: 1.1rem;
+	line-height: 1;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	pointer-events: auto;
+}
+
+.summaryNavButton:active {
+	background: #e9eef7;
 }
 
 @media (max-width: 699px) {
@@ -167,16 +239,7 @@
 	}
 
 	.summaryBoxesContainer {
-		gap: 0;
-		flex-wrap: nowrap;
-		flex-shrink: 0;
-		overflow-x: auto;
-		overflow-y: hidden;
-		scroll-snap-type: x mandatory;
-		scroll-behavior: smooth;
-		scroll-padding-inline: 7%;
-		-webkit-overflow-scrolling: touch;
-		scrollbar-width: none;
+		overflow: hidden;
 	}
 
 	.summaryBoxesContainer::-webkit-scrollbar {
@@ -185,44 +248,7 @@
 
 	.summaryBox {
 		min-width: 0;
-		padding: 12px 40px;
-		flex: 0 0 70%;
-		scroll-snap-align: start;
-		scroll-snap-stop: always;
-	}
-
-	.summaryBoxNav {
-		position: absolute;
-		left: 0;
-		right: 0;
-		top: 50%;
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		transform: translateY(-50%);
-		padding: 0 8px;
-		pointer-events: none;
-	}
-
-	.summaryNavButton {
-		height: 28px;
-		width: 28px;
-		border: 1px solid #c8ced8;
-		border-radius: 999px;
-		background: rgba(255, 255, 255, 0.92);
-		color: #1e293b;
-		font-size: 1.1rem;
-		line-height: 1;
-		cursor: pointer;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		padding: 0;
-		pointer-events: auto;
-	}
-
-	.summaryNavButton:active {
-		background: #e9eef7;
+		padding: 8px 36px 24px;
 	}
 
 	.summaryBoxLabel {
