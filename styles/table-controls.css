@@ -171,6 +171,8 @@
 		flex-wrap: nowrap;
 		gap: 10px;
 		justify-content: space-between;
+		margin-left: 0px;
+		margin-right: 0px;
 	}
 
 	.actionGroup {
