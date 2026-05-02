@@ -6,7 +6,7 @@ import {
     getSortedRows,
     SORT_FIELD_LABELS
 } from "./sort.js";
-import { buildTipTableHtml } from "./table.js";
+import { buildTipTableHtml, formatDateOnly } from "./table.js";
 
 // Keep credentials and table access in one place so the app wiring stays thin.
 const supabaseUrl = "https://gcvhadnymhofdymnxbps.supabase.co";
@@ -32,6 +32,7 @@ export function initializeTipTrackerApp() {
     const openTipModalBtn = document.getElementById("openTipModal");
     const closeTipModalBtn = document.getElementById("closeTipModal");
     const tipModalEl = document.getElementById("tipModal");
+    const tipFormDateInput = document.getElementById("tipFormDateInput");
     const removeTipsBtn = document.getElementById("removeTipsBtn");
     const graphSectionEl = document.getElementById("graphSection");
     const tipsGuestsChartCanvas = document.getElementById("tipsGuestsChart");
@@ -56,6 +57,11 @@ export function initializeTipTrackerApp() {
     let currentSortDirection = getDefaultSortDirection(currentSortField);
     let isRemoveMode = false;
     let selectedRowIds = new Set();
+    let activeDateCell = null;
+    let activeDateEditRowId = null;
+    let activeDatePopover = null;
+    let activeDatePopoverMonth = null;
+    let activeDateCommitHandler = null;
     const chartGranularityButtons = [chartByDayBtn, chartByWeekBtn, chartByMonthBtn].filter(Boolean);
 
     const EDITABLE_FIELDS = new Set(["tips", "guests", "tour", "ship", "created_at"]);
@@ -72,6 +78,156 @@ export function initializeTipTrackerApp() {
         dataDisplayEl.innerText = "";
         renderTipsGuestsChart([]);
         renderSummaryBoxes([]);
+        closeDatePopover();
+    }
+
+    function updateTipFormDateUi(isoDate) {
+        if (tipFormDateInput) {
+            tipFormDateInput.value = isoDate ? formatDateOnly(isoDate) : "";
+            tipFormDateInput.dataset.isoValue = isoDate || "";
+        }
+    }
+
+    function parseIsoDate(value) {
+        if (!value) {
+            return null;
+        }
+
+        const parsed = new Date(`${value.slice(0, 10)}T00:00:00`);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    function toIsoDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+    }
+
+    function closeDatePopover() {
+        if (activeDatePopover) {
+            activeDatePopover.remove();
+            activeDatePopover = null;
+        }
+
+        if (activeDateCell) {
+            activeDateCell.classList.remove("dateEditing");
+            activeDateCell = null;
+        }
+
+        activeDateEditRowId = null;
+        activeDatePopoverMonth = null;
+        activeDateCommitHandler = null;
+    }
+
+    function renderDatePopoverCalendar(baseDate, selectedIsoDate) {
+        const year = baseDate.getFullYear();
+        const month = baseDate.getMonth();
+        const monthLabel = baseDate.toLocaleDateString(undefined, {
+            month: "long",
+            year: "numeric"
+        });
+
+        const firstDay = new Date(year, month, 1);
+        const startOffset = (firstDay.getDay() + 6) % 7;
+        const gridStart = new Date(year, month, 1 - startOffset);
+        const weekdayLabels = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+        const todayIso = toIsoDate(new Date());
+
+        let html = `
+            <div class="datePopoverHeader">
+                <button type="button" class="datePopoverNav" data-action="prev" aria-label="Previous month">&lsaquo;</button>
+                <div class="datePopoverMonth">${monthLabel}</div>
+                <button type="button" class="datePopoverNav" data-action="next" aria-label="Next month">&rsaquo;</button>
+            </div>
+            <div class="datePopoverWeekdays">${weekdayLabels.map((label) => `<span>${label}</span>`).join("")}</div>
+            <div class="datePopoverDays">`;
+
+        for (let index = 0; index < 42; index += 1) {
+            const current = new Date(gridStart);
+            current.setDate(gridStart.getDate() + index);
+            const currentIso = toIsoDate(current);
+            const classes = ["datePopoverDay"];
+
+            if (current.getMonth() !== month) {
+                classes.push("isOutsideMonth");
+            }
+
+            if (currentIso === selectedIsoDate) {
+                classes.push("isSelected");
+            }
+
+            if (currentIso === todayIso) {
+                classes.push("isToday");
+            }
+
+            html += `<button type="button" class="${classes.join(" ")}" data-date="${currentIso}">${current.getDate()}</button>`;
+        }
+
+        html += `</div>`;
+        return html;
+    }
+
+    function positionDatePopover(popover, anchorEl) {
+        const anchorRect = anchorEl.getBoundingClientRect();
+        const popoverRect = popover.getBoundingClientRect();
+        const desiredLeft = window.scrollX + anchorRect.left + (anchorRect.width / 2) - (popoverRect.width / 2);
+        const desiredTop = window.scrollY + anchorRect.top - popoverRect.height - 10;
+        const minLeft = window.scrollX + 8;
+        const maxLeft = window.scrollX + window.innerWidth - popoverRect.width - 8;
+
+        popover.style.left = `${Math.max(minLeft, Math.min(desiredLeft, maxLeft))}px`;
+        popover.style.top = `${Math.max(window.scrollY + 8, desiredTop)}px`;
+    }
+
+    function openDatePopover(anchorEl, selectedIsoDate, commitHandler) {
+        if (!anchorEl) {
+            return;
+        }
+
+        const existingValue = (selectedIsoDate || "").slice(0, 10);
+        const baseDate = parseIsoDate(existingValue) ?? new Date();
+
+        closeDatePopover();
+
+        activeDateCell = anchorEl;
+        activeDateCommitHandler = typeof commitHandler === "function" ? commitHandler : null;
+        activeDatePopoverMonth = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+
+        if (activeDateCell.classList?.contains("editableDateCell")) {
+            activeDateCell.classList.add("dateEditing");
+        }
+
+        const popover = document.createElement("div");
+        popover.className = "datePopover";
+        popover.innerHTML = renderDatePopoverCalendar(activeDatePopoverMonth, existingValue);
+        document.body.appendChild(popover);
+        activeDatePopover = popover;
+
+        requestAnimationFrame(() => {
+            if (!activeDatePopover || activeDatePopover !== popover) {
+                return;
+            }
+
+            positionDatePopover(popover, anchorEl);
+        });
+    }
+
+    async function commitDateSelection(isoDate) {
+        if (!activeDateCommitHandler) {
+            closeDatePopover();
+            return;
+        }
+
+        const parsed = parseEditableValue("created_at", isoDate);
+        if (!parsed.valid) {
+            setAuthStatus(parsed.message);
+            closeDatePopover();
+            return;
+        }
+
+        await activeDateCommitHandler(parsed.value);
+        closeDatePopover();
     }
 
     // Groups the user's rows by date for the combined tips/guests line chart.
@@ -786,11 +942,29 @@ export function initializeTipTrackerApp() {
     // Opens the tip input dialog for adding a new row.
     function openTipModal() {
         tipModalEl.style.display = "flex";
+
+        // Set today's date as default for the date input when opening modal
+        try {
+            const dateInput = form.querySelector('input[name="created_at"]');
+            if (dateInput) {
+                const now = new Date();
+                const yyyy = now.getFullYear();
+                const mm = String(now.getMonth() + 1).padStart(2, "0");
+                const dd = String(now.getDate()).padStart(2, "0");
+                dateInput.value = `${yyyy}-${mm}-${dd}`;
+                dateInput.focus();
+            }
+        } catch (e) {
+            // ignore if DOM not ready
+        }
+        const todayIso = toIsoDate(new Date());
+        updateTipFormDateUi(todayIso);
     }
 
     // Closes the tip input dialog.
     function closeTipModal() {
         tipModalEl.style.display = "none";
+        closeDatePopover();
     }
 
     // Starts the Google sign-in flow directly.
@@ -1027,6 +1201,77 @@ export function initializeTipTrackerApp() {
         updateRemoveModeUi();
     }
 
+    function getCellDateValue(cell) {
+        return cell?.dataset?.dateValue ?? "";
+    }
+
+    function setCellDateText(cell, isoDate) {
+        const normalized = (isoDate || "").trim();
+        cell.dataset.dateValue = normalized;
+        cell.textContent = formatDateOnly(normalized);
+    }
+
+    function startDateEdit(cell) {
+        if (!cell || cell.dataset.editing === "true") {
+            return;
+        }
+
+        const currentValue = getCellDateValue(cell);
+        cell.dataset.editing = "true";
+        cell.dataset.previousValue = currentValue;
+        cell.innerHTML = `<input class="dateInput" type="date" value="${currentValue}" />`;
+
+        const input = cell.querySelector("input.dateInput");
+        if (input) {
+            input.focus();
+            input.showPicker?.();
+        }
+    }
+
+    async function finishDateEdit(cell, { cancel = false } = {}) {
+        if (!cell || cell.dataset.editing !== "true") {
+            return;
+        }
+
+        const input = cell.querySelector("input.dateInput");
+        const previousValue = cell.dataset.previousValue ?? "";
+        const nextValue = cancel ? previousValue : (input?.value ?? "").trim();
+
+        delete cell.dataset.editing;
+
+        if (!nextValue) {
+            setCellDateText(cell, previousValue);
+            return;
+        }
+
+        const parsed = parseEditableValue("created_at", nextValue);
+        if (!parsed.valid) {
+            statusEl.innerText = parsed.message;
+            setCellDateText(cell, previousValue);
+            return;
+        }
+
+        if (editableValuesEqual(previousValue, parsed.value)) {
+            setCellDateText(cell, previousValue);
+            return;
+        }
+
+        const rowEl = cell.closest("tr[data-row-id]");
+        const rowId = Number(rowEl?.dataset?.rowId);
+        if (!Number.isFinite(rowId)) {
+            setCellDateText(cell, previousValue);
+            return;
+        }
+
+        const result = await updateTipField(rowId, "created_at", parsed.value);
+        if (!result.ok) {
+            setCellDateText(cell, previousValue);
+            return;
+        }
+
+        setCellDateText(cell, nextValue);
+    }
+
     // Loads the current user's rows from Supabase and renders them in the active sort order.
     async function loadTips() {
         if (!currentUser) {
@@ -1063,7 +1308,68 @@ export function initializeTipTrackerApp() {
             return;
         }
 
+        if (cell.classList.contains("editableDateCell")) {
+            return;
+        }
+
         cell.dataset.previousValue = cell.innerText.trim();
+    });
+
+    // Opens the native date picker only when the date cell is clicked.
+    dataDisplayEl.addEventListener("click", (event) => {
+        if (isRemoveMode) {
+            return;
+        }
+
+        const cell = event.target.closest(".editableDateCell");
+        if (!cell) {
+            return;
+        }
+
+        const popover = event.target.closest(".datePopover");
+        if (popover) {
+            const actionButton = event.target.closest("button[data-action]");
+            if (actionButton) {
+                const currentBase = activeDatePopoverMonth ?? new Date();
+                const nextBase = new Date(currentBase);
+                nextBase.setMonth(nextBase.getMonth() + (actionButton.dataset.action === "next" ? 1 : -1));
+                activeDatePopoverMonth = new Date(nextBase.getFullYear(), nextBase.getMonth(), 1);
+                activeDatePopover.innerHTML = renderDatePopoverCalendar(activeDatePopoverMonth, getCellDateValue(activeDateCell));
+                requestAnimationFrame(() => {
+                    if (activeDatePopover && activeDateCell) {
+                        positionDatePopover(activeDatePopover, activeDateCell);
+                    }
+                });
+                return;
+            }
+
+            const dayButton = event.target.closest("button[data-date]");
+            if (dayButton) {
+                void commitDateSelection(dayButton.dataset.date || "");
+            }
+            return;
+        }
+
+        const currentValue = getCellDateValue(cell);
+        const rowEl = cell.closest("tr[data-row-id]");
+        const rowId = Number(rowEl?.dataset?.rowId);
+        if (!Number.isFinite(rowId)) {
+            return;
+        }
+
+        openDatePopover(cell, currentValue, async (isoDate) => {
+            if (editableValuesEqual(currentValue, isoDate)) {
+                setCellDateText(cell, isoDate);
+                return;
+            }
+
+            const result = await updateTipField(rowId, "created_at", isoDate);
+            if (result.ok) {
+                setCellDateText(cell, isoDate);
+            } else {
+                setCellDateText(cell, currentValue);
+            }
+        });
     });
 
     // Handles keyboard shortcuts for inline editing, including submit and cancel.
@@ -1074,6 +1380,21 @@ export function initializeTipTrackerApp() {
 
         const cell = event.target.closest(".editableCell");
         if (!cell) {
+            return;
+        }
+
+        if (cell.classList.contains("editableDateCell")) {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                cell.click();
+                return;
+            }
+
+            if (event.key === "Escape") {
+                event.preventDefault();
+                closeDatePopover();
+            }
+
             return;
         }
 
@@ -1098,6 +1419,10 @@ export function initializeTipTrackerApp() {
 
         const cell = event.target.closest(".editableCell");
         if (!cell) {
+            return;
+        }
+
+        if (cell.classList.contains("editableDateCell")) {
             return;
         }
 
@@ -1130,6 +1455,101 @@ export function initializeTipTrackerApp() {
         if (!result.ok) {
             cell.innerText = beforeRaw;
             return;
+        }
+    });
+
+    document.addEventListener("click", (event) => {
+        if (!activeDatePopover) {
+            return;
+        }
+
+        if (event.target.closest("#tipFormDateInput")) {
+            return;
+        }
+
+        const popoverTarget = event.target.closest(".datePopover");
+        if (popoverTarget) {
+            const actionButton = event.target.closest("button[data-action]");
+            if (actionButton) {
+                const currentBase = activeDatePopoverMonth ?? new Date();
+                const nextBase = new Date(currentBase);
+                nextBase.setMonth(nextBase.getMonth() + (actionButton.dataset.action === "next" ? 1 : -1));
+                activeDatePopoverMonth = new Date(nextBase.getFullYear(), nextBase.getMonth(), 1);
+                activeDatePopover.innerHTML = renderDatePopoverCalendar(activeDatePopoverMonth, getCellDateValue(activeDateCell));
+                requestAnimationFrame(() => {
+                    if (activeDatePopover && activeDateCell) {
+                        positionDatePopover(activeDatePopover, activeDateCell);
+                    }
+                });
+                return;
+            }
+
+            const dayButton = event.target.closest("button[data-date]");
+            if (dayButton) {
+                void commitDateSelection(dayButton.dataset.date || "");
+            }
+            return;
+        }
+
+        if (event.target.closest(".editableDateCell")) {
+            return;
+        }
+
+        closeDatePopover();
+    });
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && activeDatePopover) {
+            closeDatePopover();
+        }
+    });
+
+    window.addEventListener("resize", () => {
+        if (activeDatePopover && activeDateCell) {
+            positionDatePopover(activeDatePopover, activeDateCell);
+        }
+    });
+
+    window.addEventListener("scroll", () => {
+        if (activeDatePopover && activeDateCell) {
+            positionDatePopover(activeDatePopover, activeDateCell);
+        }
+    }, true);
+
+    dataDisplayEl.addEventListener("focusout", (event) => {
+        const dateInput = event.target.closest("input.dateInput");
+        if (!dateInput) {
+            return;
+        }
+
+        const cell = dateInput.closest(".editableDateCell");
+        if (!cell) {
+            return;
+        }
+
+        void finishDateEdit(cell);
+    });
+
+    dataDisplayEl.addEventListener("keydown", (event) => {
+        const dateInput = event.target.closest("input.dateInput");
+        if (!dateInput) {
+            return;
+        }
+
+        const cell = dateInput.closest(".editableDateCell");
+        if (!cell) {
+            return;
+        }
+
+        if (event.key === "Enter") {
+            event.preventDefault();
+            dateInput.blur();
+            return;
+        }
+
+        if (event.key === "Escape") {
+            event.preventDefault();
+            void finishDateEdit(cell, { cancel: true });
         }
     });
 
@@ -1172,6 +1592,11 @@ export function initializeTipTrackerApp() {
             user_id: currentUser.id
         };
 
+        const formDate = (tipFormDateInput?.dataset?.isoValue || formData.get("created_at") || "").toString().trim();
+        if (formDate && /^\d{4}-\d{2}-\d{2}$/.test(formDate)) {
+            data.created_at = `${formDate}T00:00:00Z`;
+        }
+
         // Close and clear immediately so the next add starts fresh.
         form.reset();
         closeTipModal();
@@ -1195,6 +1620,20 @@ export function initializeTipTrackerApp() {
         }
 
         openTipModal();
+    });
+
+    tipFormDateInput?.addEventListener("click", () => {
+        const currentValue = tipFormDateInput.dataset.isoValue?.trim() || toIsoDate(new Date());
+        openDatePopover(tipFormDateInput, currentValue, async (isoDate) => {
+            updateTipFormDateUi(isoDate);
+        });
+    });
+
+    tipFormDateInput?.addEventListener("focus", () => {
+        const currentValue = tipFormDateInput.dataset.isoValue?.trim() || toIsoDate(new Date());
+        openDatePopover(tipFormDateInput, currentValue, async (isoDate) => {
+            updateTipFormDateUi(isoDate);
+        });
     });
 
     // Closes the tip modal without submitting.

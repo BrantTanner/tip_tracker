@@ -8,7 +8,8 @@ export function formatDateOnly(value) {
     if (typeof value === "string") {
         const match = value.match(/^(\d{4}-\d{2}-\d{2})/);
         if (match) {
-            return match[1];
+            const [year, month, day] = match[1].split("-");
+            return `${month}-${day}-${year}`;
         }
     }
 
@@ -20,7 +21,7 @@ export function formatDateOnly(value) {
     const year = date.getUTCFullYear();
     const month = String(date.getUTCMonth() + 1).padStart(2, "0");
     const day = String(date.getUTCDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
+    return `${month}-${day}-${year}`;
 }
 
 // Builds the table HTML for the current rows, including optional remove-mode checkboxes.
@@ -58,7 +59,21 @@ export function buildTipTableHtml(rows, { editableFields, headerLabels, removeMo
             }
 
             if (editableFields.has(key)) {
-                html += `<td class="editableCell" data-field="${key}" contenteditable="true" spellcheck="false">${value ?? ""}</td>`;
+                if (key === "created_at") {
+                    let isoDate = "";
+                    if (typeof row.created_at === "string" && row.created_at.length >= 10) {
+                        isoDate = row.created_at.slice(0, 10);
+                    } else {
+                        const d = new Date(row.created_at);
+                        if (!Number.isNaN(d.getTime())) {
+                            isoDate = d.toISOString().slice(0, 10);
+                        }
+                    }
+
+                    html += `<td class="editableCell editableDateCell" data-field="created_at" data-date-value="${isoDate}" tabindex="0">${value ?? ""}</td>`;
+                } else {
+                    html += `<td class="editableCell" data-field="${key}" contenteditable="true" spellcheck="false">${value ?? ""}</td>`;
+                }
             } else {
                 html += `<td>${value ?? ""}</td>`;
             }

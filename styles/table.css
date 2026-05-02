@@ -94,6 +94,140 @@
 	transition: background-color 120ms ease;
 }
 
+.tipsTable .editableDateCell {
+	cursor: pointer;
+}
+
+.tipsTable .editableDateCell.dateEditing {
+	background: #f3f8ff;
+}
+
+.datePopover {
+	position: absolute;
+	z-index: 2000;
+	width: 280px;
+	padding: 12px;
+	border: 1px solid #d6dbe3;
+	border-radius: 14px;
+	background: #ffffff;
+	box-shadow: 0 18px 40px rgba(10, 20, 35, 0.18);
+	color: #1b2638;
+}
+
+.datePopoverHeader {
+	display: grid;
+	grid-template-columns: 32px 1fr 32px;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 10px;
+}
+
+.datePopoverMonth {
+	text-align: center;
+	font-weight: 700;
+	font-size: 0.98rem;
+}
+
+.datePopoverNav {
+	width: 32px;
+	height: 32px;
+	border: 0;
+	border-radius: 999px;
+	background: #eef2f8;
+	color: #1b2638;
+	cursor: pointer;
+	font-size: 1.15rem;
+	line-height: 1;
+}
+
+.datePopoverNav:hover {
+	background: #dde5f0;
+}
+
+.datePopoverWeekdays,
+.datePopoverDays {
+	display: grid;
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+	gap: 4px;
+}
+
+.datePopoverWeekdays {
+	margin-bottom: 6px;
+	font-size: 0.72rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: #6b7b94;
+}
+
+.datePopoverWeekdays span,
+.datePopoverDay {
+	display: grid;
+	place-items: center;
+	height: 34px;
+	border-radius: 10px;
+}
+
+.datePopoverDay {
+	border: 0;
+	background: transparent;
+	color: #1b2638;
+	cursor: pointer;
+	font: inherit;
+	padding: 0;
+	transition: background-color 120ms ease, color 120ms ease;
+}
+
+.datePopoverDay:hover {
+	background: #eaf2ff;
+}
+
+.datePopoverDay.isOutsideMonth {
+	color: #a6b0be;
+}
+
+.datePopoverDay.isToday {
+	box-shadow: inset 0 0 0 1px #2a6ecb;
+}
+
+.datePopoverDay.isSelected {
+	background: #2a6ecb;
+	color: #fff;
+	font-weight: 700;
+}
+
+.datePopoverDay.isSelected:hover {
+	background: #245cae;
+}
+
+.tipsTable .editableDateCell input.dateInput {
+	width: 100%;
+	box-sizing: border-box;
+	font: inherit;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	text-align: center;
+	outline: none;
+	box-shadow: none;
+	appearance: none;
+	-webkit-appearance: none;
+}
+
+.tipsTable .editableDateCell input.dateInput:focus,
+.tipsTable .editableDateCell input.dateInput:focus-visible {
+	outline: none;
+	box-shadow: none;
+	border: 0;
+}
+
+.tipsTable .editableDateCell:focus,
+.tipsTable .editableDateCell:focus-visible {
+	outline: 2px solid #2a6ecb;
+	outline-offset: -2px;
+	background: #f3f8ff;
+}
+
 .tipsTable .editableCell:focus {
 	outline: 2px solid #2a6ecb;
 	outline-offset: -2px;

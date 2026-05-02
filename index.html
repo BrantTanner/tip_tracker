@@ -38,10 +38,17 @@
             <div class="modalCard">
                 <h2>Add Tour</h2>
                 <form id="tipForm">
-                    <label>Tips: <input type="number" name="tips" required></label>
+                    <label>
+                        Tips:
+                        <span class="tipsInputWrap">
+                            <span class="currencyPrefix" aria-hidden="true">$</span>
+                            <input type="number" name="tips" required>
+                        </span>
+                    </label>
                     <label>Guests: <input type="number" name="guests" required></label>
                     <label>Tour: <input type="text" name="tour" required></label>
                     <label>Cruise Ship: <input type="text" name="ship" required></label>
+                    <label>Date: <input type="text" name="created_at" id="tipFormDateInput" readonly required></label>
                     <button type="submit">Submit</button>
                 </form>
                 <button id="closeTipModal" type="button">Close</button>
