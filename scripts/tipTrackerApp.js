@@ -234,6 +234,15 @@ export function initializeTipTrackerApp() {
     function buildTipsGuestsChartData(rows, granularity) {
         const groupedByDate = new Map();
 
+        function getTipPerHead(tips, guests) {
+            const guestCount = Number(guests) || 0;
+            if (guestCount <= 0) {
+                return 0;
+            }
+
+            return (Number(tips) || 0) / guestCount;
+        }
+
         function toDateKey(dateObj) {
             const year = dateObj.getFullYear();
             const month = String(dateObj.getMonth() + 1).padStart(2, "0");
@@ -353,7 +362,11 @@ export function initializeTipTrackerApp() {
         return {
             labels: labels.map((label) => formatChartDateLabel(label)),
             tipsData: labels.map((label) => groupedByDate.get(label)?.tips ?? 0),
-            guestsData: labels.map((label) => groupedByDate.get(label)?.guests ?? 0)
+            guestsData: labels.map((label) => groupedByDate.get(label)?.guests ?? 0),
+            tipPerHeadData: labels.map((label) => {
+                const groupedRow = groupedByDate.get(label);
+                return getTipPerHead(groupedRow?.tips ?? 0, groupedRow?.guests ?? 0);
+            })
         };
     }
 
@@ -392,6 +405,11 @@ export function initializeTipTrackerApp() {
         if (tipsGuestsChart) {
             tipsGuestsChart.destroy();
             tipsGuestsChart = null;
+            // Remove old legend container
+            const oldLegend = tipsGuestsChartCanvas.parentNode.querySelector(".chartLegendContainer");
+            if (oldLegend) {
+                oldLegend.remove();
+            }
         }
 
         if (!chartData.labels.length) {
@@ -422,7 +440,8 @@ export function initializeTipTrackerApp() {
                         pointRadius: 4,
                         pointHoverRadius: 6,
                         borderWidth: 3,
-                        yAxisID: "y"
+                        yAxisID: "y",
+                        hidden: false
                     },
                     {
                         label: "Guests by Date",
@@ -434,7 +453,21 @@ export function initializeTipTrackerApp() {
                         pointRadius: 4,
                         pointHoverRadius: 6,
                         borderWidth: 3,
-                        yAxisID: "y1"
+                        yAxisID: "y1",
+                        hidden: false
+                        },
+                        {
+                            label: "Tip Per Head",
+                            data: chartData.tipPerHeadData,
+                            borderColor: "#dc2626",
+                            backgroundColor: "rgba(220, 38, 38, 0.12)",
+                            tension: 0.35,
+                            fill: false,
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            borderWidth: 3,
+                            yAxisID: "y",
+                            hidden: false
                     }
                 ]
             },
@@ -447,7 +480,7 @@ export function initializeTipTrackerApp() {
                 },
                 plugins: {
                     legend: {
-                        position: "top"
+                        display: false
                     },
                     tooltip: {
                         callbacks: {
@@ -455,6 +488,9 @@ export function initializeTipTrackerApp() {
                                 const value = context.parsed.y;
                                 if (context.dataset.label === "Tips by Date") {
                                     return ` Tips: $${Number(value).toFixed(2)}`;
+                                }
+                                if (context.dataset.label === "Tip Per Head") {
+                                    return ` Tip Per Head: $${Number(value).toFixed(2)}`;
                                 }
                                 return ` Guests: ${value}`;
                             }
@@ -490,6 +526,51 @@ export function initializeTipTrackerApp() {
                 }
             }
         });
+
+        // Create custom legend with checkboxes
+        const legendContainer = document.createElement("div");
+        legendContainer.className = "chartLegendContainer";
+        legendContainer.style.display = "flex";
+        legendContainer.style.gap = "16px";
+        legendContainer.style.justifyContent = "center";
+        legendContainer.style.flexWrap = "wrap";
+        legendContainer.style.marginBottom = "12px";
+
+        tipsGuestsChart.data.datasets.forEach((dataset, index) => {
+            const legendItem = document.createElement("label");
+            legendItem.style.display = "flex";
+            legendItem.style.alignItems = "center";
+            legendItem.style.gap = "6px";
+            legendItem.style.cursor = "pointer";
+
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.checked = !dataset.hidden;
+            checkbox.style.cursor = "pointer";
+
+            const colorBox = document.createElement("span");
+            colorBox.style.width = "12px";
+            colorBox.style.height = "12px";
+            colorBox.style.backgroundColor = dataset.borderColor;
+            colorBox.style.borderRadius = "2px";
+
+            const label = document.createElement("span");
+            label.textContent = dataset.label;
+
+            checkbox.addEventListener("change", () => {
+                tipsGuestsChart.data.datasets[index].hidden = !checkbox.checked;
+                tipsGuestsChart.update();
+            });
+
+            legendItem.appendChild(checkbox);
+            legendItem.appendChild(colorBox);
+            legendItem.appendChild(label);
+            legendContainer.appendChild(legendItem);
+        });
+
+        // Insert legend before canvas
+        tipsGuestsChartCanvas.parentNode.insertBefore(legendContainer, tipsGuestsChartCanvas);
+
         renderSummaryBoxes(currentRows);
     }
 
@@ -497,11 +578,22 @@ export function initializeTipTrackerApp() {
     function calculateSummaries(rows, granularity = "day") {
         let totalTips = 0;
         let totalGuests = 0;
+        let totalTipPerHead = 0;
         let highestPeriodTips = 0;
         let highestPeriodGuests = 0;
+        let highestPeriodTipPerHead = 0;
         const tourCounts = new Map();
         const tours = new Set();
         const shipCounts = new Map();
+
+        function getTipPerHead(tips, guests) {
+            const guestCount = Number(guests) || 0;
+            if (guestCount <= 0) {
+                return 0;
+            }
+
+            return (Number(tips) || 0) / guestCount;
+        }
 
         rows.forEach((row) => {
             const tips = Number(row.tips) || 0;
@@ -509,6 +601,7 @@ export function initializeTipTrackerApp() {
 
             totalTips += tips;
             totalGuests += guests;
+            totalTipPerHead += getTipPerHead(tips, guests);
 
             if (row.tour) {
                 tours.add(row.tour);
@@ -544,21 +637,30 @@ export function initializeTipTrackerApp() {
         highestPeriodGuests = groupedChartData.guestsData.reduce((maxValue, value) => {
             return Math.max(maxValue, Number(value) || 0);
         }, 0);
+        highestPeriodTipPerHead = groupedChartData.tipPerHeadData.reduce((maxValue, value) => {
+            return Math.max(maxValue, Number(value) || 0);
+        }, 0);
 
         const periodCount = groupedChartData.labels.length;
         const averageTips = periodCount > 0 ? totalTips / periodCount : 0;
         const averageGuests = periodCount > 0 ? totalGuests / periodCount : 0;
+        const averageTipPerHead = groupedChartData.tipPerHeadData.length > 0
+            ? groupedChartData.tipPerHeadData.reduce((sum, value) => sum + (Number(value) || 0), 0) / groupedChartData.tipPerHeadData.length
+            : 0;
 
         return {
             totalTips,
             totalGuests,
+            totalTipPerHead,
             totalTours: tours.size,
             mostCommonTour,
             mostCommonShip,
             highestPeriodTips,
             highestPeriodGuests,
+            highestPeriodTipPerHead,
             averageTips,
-            averageGuests
+            averageGuests,
+            averageTipPerHead
         };
     }
 
@@ -872,6 +974,11 @@ export function initializeTipTrackerApp() {
                 label: "Total Guests",
                 value: `${summaries.totalGuests}`,
                 colorClass: "green"
+            },
+            {
+                label: "Total Tip Per Head",
+                value: `$${summaries.totalTipPerHead.toFixed(2)}`,
+                colorClass: "red"
             }
         ];
 
@@ -887,6 +994,11 @@ export function initializeTipTrackerApp() {
                 label: `Highest Guest Count (In One ${periodLabel})`,
                 value: `${summaries.highestPeriodGuests}`,
                 colorClass: "green"
+            },
+            {
+                label: `Highest Tip Per Head (In One ${periodLabel})`,
+                value: `$${summaries.highestPeriodTipPerHead.toFixed(2)}`,
+                colorClass: "red"
             }
         ]);
 
@@ -900,6 +1012,11 @@ export function initializeTipTrackerApp() {
                 label: `Average Amount of Guests (Per ${periodLabel})`,
                 value: `${summaries.averageGuests.toFixed(2)}`,
                 colorClass: "green"
+            },
+            {
+                label: `Average Tip Per Head (Per ${periodLabel})`,
+                value: `$${summaries.averageTipPerHead.toFixed(2)}`,
+                colorClass: "red"
             }
         ]);
 
@@ -1132,7 +1249,11 @@ export function initializeTipTrackerApp() {
     // Updates button text and table alignment for remove mode.
     function updateRemoveModeUi() {
         if (removeTipsBtn) {
-            removeTipsBtn.innerText = isRemoveMode ? "Delete Selected" : "Remove";
+            if (isRemoveMode) {
+                removeTipsBtn.innerHTML = '✕ Cancel';
+            } else {
+                removeTipsBtn.innerText = "Remove";
+            }
             removeTipsBtn.classList.toggle("active", isRemoveMode);
         }
 
@@ -1189,6 +1310,7 @@ export function initializeTipTrackerApp() {
 
         const headerLabels = {
             tips: SORT_FIELD_LABELS.tips,
+            tip_per_head: SORT_FIELD_LABELS.tip_per_head,
             guests: SORT_FIELD_LABELS.guests,
             tour: SORT_FIELD_LABELS.tour,
             ship: SORT_FIELD_LABELS.ship,
@@ -1573,6 +1695,15 @@ export function initializeTipTrackerApp() {
         } else {
             selectedRowIds.delete(rowId);
         }
+
+        // Update button text based on selection
+        if (isRemoveMode && removeTipsBtn) {
+            if (selectedRowIds.size > 0) {
+                removeTipsBtn.innerHTML = 'Delete Selected';
+            } else {
+                removeTipsBtn.innerHTML = '✕ Cancel';
+            }
+        }
     });
 
     // Submits a new tip row for the signed-in user.
@@ -1644,7 +1775,7 @@ export function initializeTipTrackerApp() {
         closeTipModal();
     });
 
-    // First tap enters remove mode, second tap deletes checked rows.
+    // Click enters/exits remove mode. If rows are checked in remove mode, a second click deletes them.
     removeTipsBtn?.addEventListener("click", async () => {
         if (!currentUser) {
             setAuthStatus("Log in before deleting tips.");
@@ -1653,18 +1784,22 @@ export function initializeTipTrackerApp() {
 
         if (!isRemoveMode) {
             setRemoveMode(true);
-            statusEl.innerText = "Select rows to remove, then tap Delete Selected.";
+            statusEl.innerText = "Select rows to remove, then click Delete Selected or click Cancel to exit.";
             return;
         }
 
-        const idsToDelete = Array.from(selectedRowIds);
-        const didDelete = await deleteTipRows(idsToDelete);
-        if (!didDelete) {
-            return;
+        // If rows are selected, delete them; otherwise just exit remove mode
+        if (selectedRowIds.size > 0) {
+            const idsToDelete = Array.from(selectedRowIds);
+            const didDelete = await deleteTipRows(idsToDelete);
+            if (!didDelete) {
+                return;
+            }
+            await loadTips();
         }
 
         setRemoveMode(false);
-        await loadTips();
+        statusEl.innerText = "";
     });
 
     // Starts Google sign-in directly from the header button.

@@ -51,6 +51,7 @@
 .removeTipsBtn.active {
 	background: #7f1d1d;
 	border-color: #6f1818;
+	color: #fff;
 }
 
 .tableControls label {

@@ -74,11 +74,11 @@
 	overflow-y: hidden;
 	width: 100%;
 	touch-action: pan-y;
-	cursor: grab;
+	cursor: pointer;
 }
 
 .summaryBoxesContainer.dragging {
-	cursor: grabbing;
+	cursor: pointer;
 	user-select: none;
 }
 

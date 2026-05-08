@@ -3,6 +3,7 @@
 export const SORT_FIELD_LABELS = {
     created_at: "Date",
     tips: "Tips",
+    tip_per_head: "Tip Per Head",
     guests: "Guests",
     tour: "Tour",
     ship: "Cruise Ship"
@@ -11,6 +12,7 @@ export const SORT_FIELD_LABELS = {
 export const SORT_FIELD_DEFAULT_DIRECTIONS = {
     created_at: "desc",
     tips: "desc",
+    tip_per_head: "desc",
     guests: "desc",
     tour: "asc",
     ship: "asc"
@@ -22,6 +24,10 @@ export const SORT_DIRECTION_LABELS = {
         asc: "Oldest to Newest"
     },
     tips: {
+        desc: "Highest to Lowest",
+        asc: "Lowest to Highest"
+    },
+    tip_per_head: {
         desc: "Highest to Lowest",
         asc: "Lowest to Highest"
     },

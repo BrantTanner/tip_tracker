@@ -26,7 +26,7 @@ export function formatDateOnly(value) {
 
 // Builds the table HTML for the current rows, including optional remove-mode checkboxes.
 export function buildTipTableHtml(rows, { editableFields, headerLabels, removeMode = false, selectedRowIds = new Set() }) {
-    const displayColumns = ["tips", "guests", "tour", "ship", "created_at"];
+    const displayColumns = ["tips", "tip_per_head", "guests", "tour", "ship", "created_at"];
     let html = '<div class="tipsTableWrap"><table class="tipsTable"><tr>';
 
     if (removeMode) {
@@ -56,6 +56,13 @@ export function buildTipTableHtml(rows, { editableFields, headerLabels, removeMo
 
             if (key === "tips" && value !== null && value !== undefined && value !== "") {
                 value = `$${Number(value).toFixed(2)}`;
+            }
+
+            if (key === "tip_per_head") {
+                const tips = Number(row.tips) || 0;
+                const guests = Number(row.guests) || 0;
+                const tipPerHead = guests > 0 ? tips / guests : 0;
+                value = `$${tipPerHead.toFixed(2)}`;
             }
 
             if (editableFields.has(key)) {
