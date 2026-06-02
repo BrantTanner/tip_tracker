@@ -84,8 +84,29 @@
                         <button id="chartByMonthBtn" class="chartSortBtn" type="button" data-granularity="month" aria-pressed="false">Months</button>
                     </div>
                 </div>
-                <div class="chartCanvasWrap">
-                    <canvas id="tipsGuestsChart"></canvas>
+                <div id="chartSlideshow" class="chartSlideshow" aria-label="Chart slideshow">
+                    <div class="chartSlidesTrack">
+                        <section class="chartSlide" aria-label="Tips and guests graph">
+                            <h4 class="chartSlideTitle">Tips and Guests</h4>
+                            <div class="chartCanvasWrap">
+                                <canvas id="tipsGuestsChart"></canvas>
+                            </div>
+                        </section>
+                        <section class="chartSlide" aria-label="Tip per head graph">
+                            <h4 class="chartSlideTitle">Tip Per Head</h4>
+                            <div class="chartCanvasWrap">
+                                <canvas id="tipPerHeadChart"></canvas>
+                            </div>
+                        </section>
+                    </div>
+                    <div class="chartSlideshowControls" aria-label="Chart slideshow controls">
+                        <button class="chartNavButton chartNavPrev" type="button" data-direction="-1" aria-label="Show previous chart">‹</button>
+                        <div class="chartDots" role="group" aria-label="Select chart">
+                            <button class="chartDot active" type="button" data-slide-index="0" aria-label="Show tips and guests graph" aria-pressed="true"></button>
+                            <button class="chartDot" type="button" data-slide-index="1" aria-label="Show tip per head graph" aria-pressed="false"></button>
+                        </div>
+                        <button class="chartNavButton chartNavNext" type="button" data-direction="1" aria-label="Show next chart">›</button>
+                    </div>
                 </div>
             </div>
         </section>
