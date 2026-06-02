@@ -62,6 +62,7 @@ export function initializeTipTrackerApp() {
     let activeDatePopover = null;
     let activeDatePopoverMonth = null;
     let activeDateCommitHandler = null;
+    let authReadyPromise = Promise.resolve();
     const chartGranularityButtons = [chartByDayBtn, chartByWeekBtn, chartByMonthBtn].filter(Boolean);
 
     const EDITABLE_FIELDS = new Set(["tips", "guests", "tour", "ship", "created_at"]);
@@ -1710,6 +1711,17 @@ export function initializeTipTrackerApp() {
     form.addEventListener("submit", async function (e) {
         e.preventDefault();
 
+        await authReadyPromise;
+
+        if (!currentUser) {
+            const {
+                data: { session }
+            } = await supabase.auth.getSession();
+
+            currentUser = session?.user ?? null;
+            setAuthUi(currentUser);
+        }
+
         if (!currentUser) {
             setAuthStatus("Log in before submitting tips.");
             return;
@@ -1964,5 +1976,5 @@ export function initializeTipTrackerApp() {
 
     updateChartGranularityUi();
 
-    initializeAuth();
+    authReadyPromise = initializeAuth();
 }
