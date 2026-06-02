@@ -468,7 +468,7 @@ export function initializeTipTrackerApp() {
                             pointHoverRadius: 6,
                             borderWidth: 3,
                             yAxisID: "y",
-                            hidden: false
+                                hidden: true
                     }
                 ]
             },
