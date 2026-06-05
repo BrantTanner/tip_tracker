@@ -500,6 +500,53 @@ export function initializeTipTrackerApp() {
         };
     }
 
+    function renderTipPerHeadChart(rows, xAxisTitle) {
+        if (!tipPerHeadChartCanvas || typeof Chart === "undefined") {
+            return;
+        }
+
+        if (tipPerHeadChart) {
+            tipPerHeadChart.destroy();
+            tipPerHeadChart = null;
+        }
+
+        const chartData = buildTipsGuestsChartData(rows, currentChartGranularity);
+        if (!chartData.labels.length) {
+            const context = tipPerHeadChartCanvas.getContext("2d");
+            if (context) {
+                context.clearRect(0, 0, tipPerHeadChartCanvas.width, tipPerHeadChartCanvas.height);
+            }
+            return;
+        }
+
+        const context = tipPerHeadChartCanvas.getContext("2d");
+        if (!context) {
+            return;
+        }
+
+        tipPerHeadChart = new Chart(context, {
+            type: "line",
+            data: {
+                labels: chartData.labels,
+                datasets: [
+                    {
+                        label: "Tip Per Head",
+                        data: chartData.tipPerHeadData,
+                        borderColor: "#dc2626",
+                        backgroundColor: "rgba(220, 38, 38, 0.12)",
+                        tension: 0.35,
+                        fill: false,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        borderWidth: 3,
+                        yAxisID: "y"
+                    }
+                ]
+            },
+            options: buildTipPerHeadChartOptions(xAxisTitle)
+        });
+    }
+
     function moveChartSlide(chartContainer, direction) {
         if (!chartContainer) {
             return;
@@ -535,6 +582,22 @@ export function initializeTipTrackerApp() {
 
         chartSlides.forEach((chartSlide, index) => {
             chartSlide.setAttribute("aria-hidden", String(index !== nextIndex));
+        });
+
+        window.requestAnimationFrame(() => {
+            if (nextIndex === 0 && tipsGuestsChart) {
+                tipsGuestsChart.resize();
+                tipsGuestsChart.update("none");
+            }
+
+            if (nextIndex === 1) {
+                if (!tipPerHeadChart) {
+                    renderTipPerHeadChart(currentRows, getChartAxisTitle());
+                } else {
+                    tipPerHeadChart.resize();
+                    tipPerHeadChart.update("none");
+                }
+            }
         });
 
         const dots = Array.from(chartContainer.querySelectorAll(".chartDot"));
@@ -800,29 +863,13 @@ export function initializeTipTrackerApp() {
             });
         }
 
-        const tipPerHeadContext = tipPerHeadChartCanvas.getContext("2d");
-        if (tipPerHeadContext) {
-            tipPerHeadChart = new Chart(tipPerHeadContext, {
-                type: "line",
-                data: {
-                    labels: chartData.labels,
-                    datasets: [
-                        {
-                            label: "Tip Per Head",
-                            data: chartData.tipPerHeadData,
-                            borderColor: "#dc2626",
-                            backgroundColor: "rgba(220, 38, 38, 0.12)",
-                            tension: 0.35,
-                            fill: false,
-                            pointRadius: 4,
-                            pointHoverRadius: 6,
-                            borderWidth: 3,
-                            yAxisID: "y"
-                        }
-                    ]
-                },
-                options: buildTipPerHeadChartOptions(xAxisTitle)
-            });
+        if (chartSlideshowEl?.dataset.currentSlideIndex === "1" || tipPerHeadChart) {
+            renderTipPerHeadChart(rows, xAxisTitle);
+        } else {
+            const tipPerHeadContext = tipPerHeadChartCanvas.getContext("2d");
+            if (tipPerHeadContext) {
+                tipPerHeadContext.clearRect(0, 0, tipPerHeadChartCanvas.width, tipPerHeadChartCanvas.height);
+            }
         }
 
         if (chartSlideshowEl) {
