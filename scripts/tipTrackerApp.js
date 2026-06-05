@@ -409,8 +409,9 @@ export function initializeTipTrackerApp() {
 
     function buildCombinedChartOptions(xAxisTitle) {
         return {
-            responsive: true,
+            responsive: false,
             maintainAspectRatio: false,
+            devicePixelRatio: 1,
             interaction: {
                 mode: "index",
                 intersect: false
@@ -463,8 +464,9 @@ export function initializeTipTrackerApp() {
 
     function buildTipPerHeadChartOptions(xAxisTitle) {
         return {
-            responsive: true,
+            responsive: false,
             maintainAspectRatio: false,
+            devicePixelRatio: 1,
             interaction: {
                 mode: "index",
                 intersect: false
@@ -505,17 +507,29 @@ export function initializeTipTrackerApp() {
             return;
         }
 
-        if (tipPerHeadChart) {
-            tipPerHeadChart.destroy();
-            tipPerHeadChart = null;
-        }
-
         const chartData = buildTipsGuestsChartData(rows, currentChartGranularity);
         if (!chartData.labels.length) {
             const context = tipPerHeadChartCanvas.getContext("2d");
             if (context) {
                 context.clearRect(0, 0, tipPerHeadChartCanvas.width, tipPerHeadChartCanvas.height);
             }
+
+            if (tipPerHeadChart) {
+                tipPerHeadChart.destroy();
+                tipPerHeadChart = null;
+            }
+
+            return;
+        }
+
+        tipPerHeadChartCanvas.width = Math.max(1, Math.floor(tipPerHeadChartCanvas.clientWidth || 0));
+        tipPerHeadChartCanvas.height = Math.max(1, Math.floor(tipPerHeadChartCanvas.clientHeight || 0));
+
+        if (tipPerHeadChart) {
+            tipPerHeadChart.data.labels = chartData.labels;
+            tipPerHeadChart.data.datasets[0].data = chartData.tipPerHeadData;
+            tipPerHeadChart.options.scales.x.title.text = xAxisTitle;
+            tipPerHeadChart.update("none");
             return;
         }
 
@@ -584,21 +598,9 @@ export function initializeTipTrackerApp() {
             chartSlide.setAttribute("aria-hidden", String(index !== nextIndex));
         });
 
-        window.requestAnimationFrame(() => {
-            if (nextIndex === 0 && tipsGuestsChart) {
-                tipsGuestsChart.resize();
-                tipsGuestsChart.update("none");
-            }
-
-            if (nextIndex === 1) {
-                if (!tipPerHeadChart) {
-                    renderTipPerHeadChart(currentRows, getChartAxisTitle());
-                } else {
-                    tipPerHeadChart.resize();
-                    tipPerHeadChart.update("none");
-                }
-            }
-        });
+        if (nextIndex === 1 && !tipPerHeadChart) {
+            renderTipPerHeadChart(currentRows, getChartAxisTitle());
+        }
 
         const dots = Array.from(chartContainer.querySelectorAll(".chartDot"));
         dots.forEach((dot, index) => {
@@ -798,16 +800,6 @@ export function initializeTipTrackerApp() {
         const chartData = buildTipsGuestsChartData(rows, currentChartGranularity);
         const xAxisTitle = getChartAxisTitle();
 
-        if (tipsGuestsChart) {
-            tipsGuestsChart.destroy();
-            tipsGuestsChart = null;
-        }
-
-        if (tipPerHeadChart) {
-            tipPerHeadChart.destroy();
-            tipPerHeadChart = null;
-        }
-
         if (!chartData.labels.length) {
             const tipsGuestsContext = tipsGuestsChartCanvas.getContext("2d");
             if (tipsGuestsContext) {
@@ -819,6 +811,16 @@ export function initializeTipTrackerApp() {
                 tipPerHeadContext.clearRect(0, 0, tipPerHeadChartCanvas.width, tipPerHeadChartCanvas.height);
             }
 
+            if (tipsGuestsChart) {
+                tipsGuestsChart.destroy();
+                tipsGuestsChart = null;
+            }
+
+            if (tipPerHeadChart) {
+                tipPerHeadChart.destroy();
+                tipPerHeadChart = null;
+            }
+
             if (chartSlideshowEl) {
                 moveChartSlide(chartSlideshowEl, 0);
             }
@@ -828,49 +830,53 @@ export function initializeTipTrackerApp() {
 
         const tipsGuestsContext = tipsGuestsChartCanvas.getContext("2d");
         if (tipsGuestsContext) {
-            tipsGuestsChart = new Chart(tipsGuestsContext, {
-                type: "line",
-                data: {
-                    labels: chartData.labels,
-                    datasets: [
-                        {
-                            label: "Tips by Date",
-                            data: chartData.tipsData,
-                            borderColor: "#1e66d0",
-                            backgroundColor: "rgba(30, 102, 208, 0.12)",
-                            tension: 0.35,
-                            fill: false,
-                            pointRadius: 4,
-                            pointHoverRadius: 6,
-                            borderWidth: 3,
-                            yAxisID: "y"
-                        },
-                        {
-                            label: "Guests by Date",
-                            data: chartData.guestsData,
-                            borderColor: "#16a34a",
-                            backgroundColor: "rgba(22, 163, 74, 0.12)",
-                            tension: 0.35,
-                            fill: false,
-                            pointRadius: 4,
-                            pointHoverRadius: 6,
-                            borderWidth: 3,
-                            yAxisID: "y1"
-                        }
-                    ]
-                },
-                options: buildCombinedChartOptions(xAxisTitle)
-            });
-        }
+            tipsGuestsChartCanvas.width = Math.max(1, Math.floor(tipsGuestsChartCanvas.clientWidth || 0));
+            tipsGuestsChartCanvas.height = Math.max(1, Math.floor(tipsGuestsChartCanvas.clientHeight || 0));
 
-        if (chartSlideshowEl?.dataset.currentSlideIndex === "1" || tipPerHeadChart) {
-            renderTipPerHeadChart(rows, xAxisTitle);
-        } else {
-            const tipPerHeadContext = tipPerHeadChartCanvas.getContext("2d");
-            if (tipPerHeadContext) {
-                tipPerHeadContext.clearRect(0, 0, tipPerHeadChartCanvas.width, tipPerHeadChartCanvas.height);
+            if (tipsGuestsChart) {
+                tipsGuestsChart.data.labels = chartData.labels;
+                tipsGuestsChart.data.datasets[0].data = chartData.tipsData;
+                tipsGuestsChart.data.datasets[1].data = chartData.guestsData;
+                tipsGuestsChart.options.scales.x.title.text = xAxisTitle;
+                tipsGuestsChart.update("none");
+            } else {
+                tipsGuestsChart = new Chart(tipsGuestsContext, {
+                    type: "line",
+                    data: {
+                        labels: chartData.labels,
+                        datasets: [
+                            {
+                                label: "Tips by Date",
+                                data: chartData.tipsData,
+                                borderColor: "#1e66d0",
+                                backgroundColor: "rgba(30, 102, 208, 0.12)",
+                                tension: 0.35,
+                                fill: false,
+                                pointRadius: 4,
+                                pointHoverRadius: 6,
+                                borderWidth: 3,
+                                yAxisID: "y"
+                            },
+                            {
+                                label: "Guests by Date",
+                                data: chartData.guestsData,
+                                borderColor: "#16a34a",
+                                backgroundColor: "rgba(22, 163, 74, 0.12)",
+                                tension: 0.35,
+                                fill: false,
+                                pointRadius: 4,
+                                pointHoverRadius: 6,
+                                borderWidth: 3,
+                                yAxisID: "y1"
+                            }
+                        ]
+                    },
+                    options: buildCombinedChartOptions(xAxisTitle)
+                });
             }
         }
+
+        renderTipPerHeadChart(rows, xAxisTitle);
 
         if (chartSlideshowEl) {
             moveChartSlide(chartSlideshowEl, 0);
@@ -2270,11 +2276,6 @@ export function initializeTipTrackerApp() {
     }
 
     window.addEventListener("resize", updateRemoveModeUi);
-    window.addEventListener("resize", () => {
-        if (tipsGuestsChart) {
-            tipsGuestsChart.resize();
-        }
-    });
 
     updateChartGranularityUi();
 

@@ -58,15 +58,16 @@
 .chartSlideshow {
 	position: relative;
 	width: 100%;
-	flex: 1;
+	flex: none;
+	height: 500px;
 	min-height: 0;
 	overflow: hidden;
 	touch-action: pan-y;
-	cursor: grab;
+	cursor: pointer;
 }
 
 .chartSlideshow.dragging {
-	cursor: grabbing;
+	cursor: pointer;
 	user-select: none;
 }
 
@@ -100,14 +101,17 @@
 .chartCanvasWrap {
 	position: relative;
 	width: 100%;
-	flex: 1;
-	min-height: 0;
+	height: 430px;
+	min-height: 430px;
+	flex: none;
 }
 
 #tipsGuestsChart,
 #tipPerHeadChart {
 	width: 100%;
 	height: 100%;
+	max-width: 100% !important;
+	max-height: 100% !important;
 	min-height: 0;
 	display: block;
 }
@@ -331,12 +335,21 @@
 		min-height: 400px;
 	}
 
+	.chartSlideshow {
+		height: 420px;
+	}
+
 	.chartSlide {
 		padding-bottom: 28px;
 	}
 
 	.chartSlideTitle {
 		font-size: 0.85rem;
+	}
+
+	.chartCanvasWrap {
+		height: 350px;
+		min-height: 350px;
 	}
 
 	.chartSortBtn {
