@@ -78,6 +78,22 @@ export function initializeTipTrackerApp() {
         }
     }
 
+    async function resolveCurrentUser() {
+        const {
+            data: { session }
+        } = await supabase.auth.getSession();
+
+        if (session?.user) {
+            return session.user;
+        }
+
+        const {
+            data: { user }
+        } = await supabase.auth.getUser();
+
+        return user ?? null;
+    }
+
     // Clears the display when no data should be shown yet.
     function clearDataViews() {
         currentRows = [];
@@ -2211,17 +2227,25 @@ export function initializeTipTrackerApp() {
     });
 
     // Keeps the UI in sync with Supabase auth state changes from other tabs or refreshes.
-    supabase.auth.onAuthStateChange(async (_event, session) => {
-        currentUser = session?.user ?? null;
-        setAuthUi(currentUser);
-
-        if (!currentUser) {
-            setRemoveMode(false);
+    supabase.auth.onAuthStateChange((_event, session) => {
+        if (session?.user) {
+            currentUser = session.user;
+            setAuthUi(currentUser);
+            void loadTips();
+            return;
         }
 
-        if (currentUser) {
-            await loadTips();
-        }
+        void (async () => {
+            currentUser = await resolveCurrentUser();
+            setAuthUi(currentUser);
+
+            if (!currentUser) {
+                setRemoveMode(false);
+                return;
+            }
+
+            void loadTips();
+        })();
     });
 
     // Handles the filter button toggle for mobile view.
@@ -2260,16 +2284,12 @@ export function initializeTipTrackerApp() {
 
     // Pulls the current session on page load so the UI starts in the right state.
     async function initializeAuth() {
-        const {
-            data: { session }
-        } = await supabase.auth.getSession();
-
-        currentUser = session?.user ?? null;
+        currentUser = await resolveCurrentUser();
         setAuthUi(currentUser);
         setSortField(sortBySelect?.value || "created_at");
 
         if (currentUser) {
-            await loadTips();
+            void loadTips();
         }
 
         updateRemoveModeUi();
